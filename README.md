@@ -12,9 +12,8 @@ Quantile regression is a powerful method of evaluating how an exposure affects t
 - `Presentation.pdf`: A PowerPoint presentation of the 2023 SER workshop.
 - `Handout.Rmd`: A R markdown file with example code and additional explanation; to accompany the workshop presentation (please allow 5-10 minutes to compile).
 - `Handout.pdf`: A PDF version of the R markdown file when fully compiled.
+- `HandoutCode.Rmd`: A R markdown file with just the example code to accompany the workshop presentation (please allow 5-10 minutes to compile).
 
-- `Cited Papers`: A folder containing PDF versions of cited papers.
-- `Extension Papers`: A folder containing PDF versions of extension papers.
 
 Note that no datasets will be made available on this repository due to data usage restrictions. All data can be accessed through the Health and Retirement Study (HRS) public survey files. 
 
