@@ -1,0 +1,976 @@
+---
+title: <font size = "6" color = "F2494C">A Primer on Quantile Regression for Epidemiologists Code</font>
+subtitle: <font size = "4">SER 2024 Workshop</font>
+author: <font size = "3">Aayush Khadka, Jilly Hebert, and Anusha Vable</font>
+output:
+  html_document: default
+  pdf_document: default
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include = F}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## <font size = "5" color = "468C8A">Practical example</font>
+The quantile regression code in this workshop will be presented in the context of an analysis investigating the relationship between educational attainment and later-life systolic blood pressure (SBP). This is a question that occupies a lot of our time in VabLab because education has been shown to have a strong, inverse relationship with average SBP; however, since there may be a non-linear relationship between SBP and the risk of coronary heart disease and stroke, it is imperative that we understand education's potential role in reshaping the SBP distribution. 
+
+Our data for the practical example comes from the US Health and Retirement Study, which is a nationally representative, multi-cohort, biennially conducted longitudinal study of non-institutionalized US adults who are 50 years or older. Our analytic sample includes US born HRS participants who were first interviewed in 1998 or later, and had no missing covariate information (N = 8,875). Since blood pressure started being measured in the HRS in 2006, 
+our study period ranged from 2006 to 2018.
+
+We use self-reported total years of schooling as our exposure variable and first recorded SBP as our outcome variable. Total years of schooling takes on integer values between 5 and 17 years, with 5 indicating that the respondent had 5 or fewer years of schooling and 17 indicating that the respondent had 17 or more years of schooling. We do not use repeated measures of SBP in our data to keep the exposition of quantile regression ideas clear and uncomplicated. In our analysis, we will also include covariates such as age (linear + quadratic term), sex (female and male persons), race (Black, Latinx, White), whether the respondent was born in the US South, parental education as a marker of childhood socioeconomic status, and the year in which SBP was measured.
+
+```{r message = F, warning = F}
+
+library(readr)
+library(tidyverse)
+
+#Load dataset
+data <- read_rds("QRWorkshop.rds")
+summary(data)
+
+#Format categorical variables
+data$gender <- factor(data$gender)
+data$race <- factor(data$race)
+data$year <- factor(data$year)
+
+# Centering schooly years at 12 years of schooling
+data$schlyrs <- data$schlyrs - 12
+
+```
+
+
+The specifics of the variables included in our dataset are provided below:
+
+-   ID: Unique identifier\
+-   Age: Age of participant at the time of SBP measurement (linear/quadratic)\
+-   Gender: Gender of participant\
+<font size = "2.5"> - 1 = Female\
+- 2 = Male
+-   Race: Race of participant\
+<font size = "2.5"> - 1 = non-Hispanic White\
+- 2 = non-Hispanic Black\
+- 3 = Hispanic/Latinx\
+-   Southern: Birthplace of participant\
+<font size = "2.5"> - 0 = Not born in the Southern US\
+- 1 = Born in the Southern US</font>\
+-   Schlyrs: Self-reported total years of education (centered at 12 years to help aid the interpretation of the intercept later)\
+<font size = "2.5"> - 5-17 years\
+-   Mom_ed: Mother's education\
+<font size = "2.5"> - 5-17 years\
+-   Dad_ed: Father's education\
+<font size = "2.5"> - 5-17 years\
+-   Year: Year of SBP measurement\
+<font size = "2.5"> - 2006-2018\
+-   SBP: Systolic blood pressure (mHg)\
+<font size = "2.5"> - 73-233\
+
+
+# <font size = "3" color = "FF9300">Location and Scale Shifts</font>
+```{r message = F, warning = F}
+
+library(tidyverse)
+#install.packages("patchwork")
+library(patchwork) #Printing ggplots together
+
+#Location shift
+cont <- rnorm(100, mean = 0, sd = 1)
+loc_t <- cont + 3
+
+ls <- data.frame("Outcome" = c(cont, loc_t),
+                 "Group" = factor(c(rep("Control", length(cont)),
+                                    rep("Treatment", length(loc_t)))))
+
+location_shift <- ggplot(aes(Outcome, color = Group, linetype = Group), 
+                         data = ls) +
+  geom_density() +
+  xlim(-10, 10) +
+  ylab("Density") +
+  scale_color_manual(values = c("#F2494C", "#468C8A")) + 
+  theme_classic() +
+  theme(strip.background = element_blank(),
+        legend.position = "bottom")
+
+
+#Scale shift
+scl_t <- rnorm(100, mean = 0, sd = 3)
+
+ss <- data.frame("Outcome" = c(cont, scl_t),
+                 "Group" = factor(c(rep("Control", length(cont)),
+                                    rep("Treatment", length(scl_t)))))
+
+scale_shift <- ggplot(aes(Outcome, color = Group, linetype = Group),
+                      data = ss) +
+  geom_density() +
+  xlim(-10, 10) +
+  ylab("Density") +
+  scale_color_manual(values = c("#F2494C", "#468C8A")) + 
+  theme_classic() +
+  theme(strip.background = element_blank(),
+        legend.position = "bottom")
+
+
+#Location and Scale shift
+ls_t <- scl_t + 3
+
+lss <- data.frame("Outcome" = c(cont, ls_t),
+                  "Group" = factor(c(rep("Control", length(cont)),
+                                     rep("Treatment", length(ls_t)))))
+
+loc_scale_shift <- ggplot(aes(Outcome, color = Group, linetype = Group), 
+                          data = lss) +
+  geom_density() +
+  xlim(-10, 10) +
+  ylab("Density") +
+  scale_color_manual(values = c("#F2494C", "#468C8A")) + 
+  theme_classic() +
+  theme(strip.background = element_blank(),
+        legend.position = "bottom")
+
+#Final plot
+(location_shift | scale_shift) /
+  (loc_scale_shift + plot_spacer())
+
+```
+
+
+# <font size = "3" color = "FF9300">Unconditional and Conditional Means</font>
+```{r message = F, warning = F}
+
+# Unconditional mean
+mean(data$sbp) #127.63
+
+
+# Conditional means
+data <- data %>%
+  mutate(age_group = case_when(age < 60 ~ "<60",
+                               between(age, 60, 69) ~ "60-69",
+                               between(age, 70, 79) ~ "70-79",
+                               age >= 80 ~ "80+"))
+data %>%
+  group_by(age_group) %>%
+  summarise(mean_sbp = mean(sbp),
+            n = n(),
+            product = mean_sbp*n)
+
+# Law of Iterated expectation in action. Here we're using information from the table above to multiply each conditional mean by the probability of that age group occuring in the data. The probability is calculated inside the parentheses.
+125.3223*(5813/8875) + 130.4148*(1925/8875) + 134.0595*(613/8875) + 135.4838*(524/8875)
+
+```
+
+
+# <font size = "3" color = "FF9300">Obtaining quantile values in R</font>
+
+It's easy to find quantiles of a random variable in R. Let's take a look at how we'd find quantiles of the unconditional SBP distribution:
+
+```{r message = F, warning = F}
+
+as.numeric(quantile(data$sbp, probs = c(0.1, 0.25, 0.5, 0.75, 0.9)))
+
+q10 <- as.numeric(quantile(data$sbp, probs = 0.10)) 
+q25 <- as.numeric(quantile(data$sbp, probs = 0.25))
+q50 <- as.numeric(quantile(data$sbp, probs = 0.50))
+q75 <- as.numeric(quantile(data$sbp, probs = 0.75))
+q90 <- as.numeric(quantile(data$sbp, probs = 0.90)) 
+
+```
+
+
+# <font size = "3" color = "FF9300">Going from conditional to unconditional quantiles</font>
+
+The figure below shows the 10<sup>th</sup>, 25<sup>th</sup>, 50<sup>th</sup>, 75<sup>th</sup>, and 90<sup>th</sup> quantiles of the unconditional SBP distribution (panel a) and SBP distribution among 80+ year olds in our data (panel b). Notice how the values of the quantiles between the unconditional and conditional distributions don't line up particularly well. This is to be expected, of course, but this poses a challenge when it comes to working back up from conditional quantiles to unconditional quantiles.
+
+```{r message = F, warning = F}
+
+#Unconditional density plot
+unconditional_den <- ggplot(data, aes(x = sbp)) + 
+  geom_density(aes(y = after_stat(density))) +
+  xlab("Systolic Blood Pressure (mmHg)") +
+  ylab("Density")  +
+  labs(title = "a) Unconditional density of systolic blood pressure") + 
+  theme_classic() +
+  theme(strip.background = element_blank(),
+        text = element_text(size = 10)) + 
+  geom_vline(aes(xintercept = q10), color = "#F2494C", linewidth = 1) +
+  geom_vline(aes(xintercept = q25), color = "#FF9300", linewidth = 1) +
+  geom_vline(aes(xintercept = q50), color = "#468C8A", linewidth = 1) +
+  geom_vline(aes(xintercept = q75), color = "blue", linewidth = 1) +
+  geom_vline(aes(xintercept = q90), color = "purple", linewidth = 1) +
+  scale_x_continuous(breaks = seq(60, 240, by = 20))
+
+
+#Conditional density plot (for 80+ group)
+data_8 <- data %>% 
+  dplyr::filter(age_group == "80+")
+
+q10_8 <- as.numeric(quantile(data_8$sbp, probs = 0.10)) 
+q25_8 <- as.numeric(quantile(data_8$sbp, probs = 0.25))
+q50_8 <- as.numeric(quantile(data_8$sbp, probs = 0.50))
+q75_8 <- as.numeric(quantile(data_8$sbp, probs = 0.75))
+q90_8 <- as.numeric(quantile(data_8$sbp, probs = 0.90)) 
+
+
+conditional_den <- ggplot(data_8, aes(x = sbp)) + 
+  geom_density(aes(y = after_stat(density))) +
+  xlab("Systolic Blood Pressure (mmHg)") +
+  ylab("Density")  +
+  labs(title = "b) Conditional density of systolic blood pressure (80+)") + 
+  theme_classic() +
+  theme(strip.background = element_blank(),
+        text = element_text(size = 10)) + 
+  geom_vline(aes(xintercept = q10_8), color = "#F2494C", linewidth = 1) +
+  geom_vline(aes(xintercept = q25_8), color = "#FF9300", linewidth = 1) +
+  geom_vline(aes(xintercept = q50_8), color = "#468C8A", linewidth = 1) +
+  geom_vline(aes(xintercept = q75_8), color = "blue", linewidth = 1) +
+  geom_vline(aes(xintercept = q90_8), color = "purple", linewidth = 1) +
+  scale_x_continuous(breaks = seq(60, 240, by = 20))
+
+
+unconditional_den / conditional_den
+
+```
+
+
+# <font size = "6.5" color = "F2494C">Linear Regression</font>
+
+# <font size = "3" color = "FF9300">Unadjusted Ordinary Least Squares Model</font>
+
+```{r message = F, warning = F}
+
+ggplot(aes(x = schlyrs, y = sbp), data = data) +
+  geom_point() +
+  scale_x_continuous(limits = c(5, 17),
+                     breaks = seq(5, 17, by = 1)) +
+  xlab("School Years") +
+  ylab("Systolic Blood Pressure (mmHg)") + 
+  geom_smooth(method = "lm", formula = y ~ x, color = "#FF9300")
+
+ols_un <- lm(sbp ~ schlyrs, data = data)
+summary(ols_un)$coefficients["schlyrs", ]
+
+```
+
+
+# <font size = "3" color = "FF9300">Conditional Expectation Function (CEF)</font>
+
+```{r message = F, warning = F}
+# Loading some libraries
+library(gganimate)
+library(gifski)
+library(magick)
+
+# Estimating the conditional means of SBP by level of schooling
+# Reducing data
+df_linreg_basic <- data %>%
+  select("schlyrs", "sbp", "gender") %>%
+  group_by(schlyrs) %>%
+  mutate(mean_sbp = mean(sbp, na.rm = TRUE)) %>%
+  ungroup()
+
+# Creating a dataset for plotting
+df_linreg_basic_animate <- rbind(
+  # Step 1: Raw data only
+  df_linreg_basic %>% mutate(mean_sbp = NA, time = '1. Full data'),
+  # Step 2: SBP means only
+  df_linreg_basic %>% mutate(sbp = mean_sbp,
+                             mean_sbp = NA, time = '2. Conditional means')
+)
+
+# GIF1: Animating the conditional expectation
+linreg_scatter <- ggplot(data = df_linreg_basic_animate, aes(x = schlyrs, y = sbp)) +
+  
+  # Regular plot
+  geom_point() +
+  theme(panel.background = element_rect(fill = 'white', colour = 'white'),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12),
+        axis.title = element_text(size = 13.5, face = "bold"),
+        plot.title = element_text(size = 16, face = "bold")) +
+  scale_x_continuous(limits = c(5, 17),
+                     breaks = seq(5, 17, by = 1)) +
+  xlab("Total years of schooling") +
+  ylab("Systolic Blood Pressure (mmHg)") +
+  
+  # Animation
+  transition_states(time, wrap = FALSE) +
+  ease_aes('linear') +
+  exit_fade() +
+  enter_fade()
+
+animate(linreg_scatter,
+        width = 10, height = 6.67, unit = "in",
+        res = 300,
+        renderer = gifski_renderer(loop = FALSE),
+        fps = 20)
+
+```
+
+> The conditional expectation function (CEF) tells us how the conditional mean of the outcome changes as we change values of the conditioning variable
+
+
+# <font size = "3" color = "FF9300">Population Regression Line approximates the Conditional Expectation Function</font>
+
+```{r message = F, warning = F}
+# Creating a dataset of conditional means
+df_sbp_means <- data %>%
+  group_by(schlyrs) %>%
+  summarise(mean_sbp = mean(sbp, na.rm = TRUE))
+
+# CEF plot with regression line
+cef_reg <- ggplot(data = df_sbp_means, aes(x = schlyrs, y = mean_sbp)) +
+  geom_point() +
+  geom_line() +
+  geom_smooth(data = df_linreg_basic, aes(x = schlyrs, y = sbp), method = "lm", formula = y ~ x, color = "#FF9300", se = FALSE) +
+  theme(panel.background = element_rect(fill = 'white', colour = 'white'),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12),
+        axis.title = element_text(size = 13.5, face = "bold"),
+        plot.title = element_text(size = 16, face = "bold")) +
+  scale_x_continuous(limits = c(5, 17),
+                     breaks = seq(5, 17, by = 1)) +
+  scale_y_continuous(limits = c(60, 240),
+                     breaks = seq(60, 240, by = 40)) +
+  xlab("Total years of schooling") +
+  ylab("Systolic Blood Pressure (mmHg)") 
+
+print(cef_reg)
+
+```
+
+> Since it is a model of the conditional expectation function, linear regression provides us with an estimate for how the mean of the outcome changes as we change the exposure by one unit
+
+
+
+```{r message = F, warning = F}
+
+#Fit adjusted ols model
+ols_mod <- lm(sbp ~ schlyrs + age + age2 + gender + race + southern + mom_ed +
+                dad_ed + year, data = data)
+
+summary(ols_mod)$coefficients["schlyrs", ]
+
+```
+
+We can interpret coefficient on the "schlyrs" as: a one year increase in years of schooling is associated with a 7.9 mmHg decrease in average SBP, holding all other covariates in the model constant.
+
+
+# <font size = "3" color = "FF9300">Robust Standard Errors</font>
+
+```{r message = F, warning = F}
+
+#install.packages("simpleboot")
+
+library(simpleboot)
+
+ols_boot <- lm.boot(ols_mod, R = 500)
+boot_sum <- summary(ols_boot)
+
+ols_schlyrs_est <- as.numeric(boot_sum$orig.lm$coefficients["schlyrs"])
+ols_schlyrs_sd <- as.numeric(boot_sum$stdev.params["schlyrs"])
+
+ols_robust <- data.frame("Quantile" = -0.1,
+                         "Estimate" = ols_schlyrs_est,
+                         "Lower" = ols_schlyrs_est - (1.96*ols_schlyrs_sd),
+                         "Upper" = ols_schlyrs_est + (1.96*ols_schlyrs_sd),
+                         "regtype" = "OLS")
+
+#Compare to unadjusted standard errors
+#summary(ols_mod)$coefficients["schlyrs", ]
+
+```
+
+Notice that our robust standard error estimate for the coefficient on "schlyrs" is slightly different from the "non-robust" standard error estimate we saw earlier.
+
+# <font size = "3" color = "FF9300">Bootstrapped Confidence Intervals</font>
+
+```{r message = F, warning = F}
+
+library(boot) #Bootstrapping
+
+#Bootstrap for 95% CIs
+boot_lm <- function(data, id){
+  fit <- lm(sbp ~ schlyrs + age + age2 + gender + race + southern + mom_ed +
+              dad_ed + year, data = data[id, ])
+  coef(fit)
+}
+
+b <- boot(data, boot_lm, 50)
+ols_ci <- data.frame("index" = NA,
+                     "lower_ci" = NA,
+                     "upper_ci" = NA)
+
+#Loop through all variables
+for(i in 1:nrow(summary(ols)$coefficient)){
+  
+  boot <- boot.ci(b, index = i, type = "perc")
+  ols_ci[i, "index"] = i
+  ols_ci[i, "lower_ci"] = boot$percent[, 4]
+  ols_ci[i, "upper_ci"] = boot$percent[, 5]
+  
+}
+
+ols_est <- cbind(ols_ci[, -1], summary(ols)$coefficient)
+rownames(ols_est) <- rownames(summary(ols)$coefficient)
+ols_est["schlyrs", ]
+
+#Compare to robust standard errors
+#ols_robust["schlyrs", ]
+
+#Compare to unadjusted standard errors
+#summary(ols_mod)$coefficients["schlyrs", ]
+
+```
+
+
+
+# <font size = "6.5" color = "F2494C">Conditional Quantile Regression (CQR)</font>
+
+### <font size = "3" color = "FF9300">Fitting CQR models in R</font>
+
+In R, we fit CQR models by using the function "rq" from the package <font size = "4"> [`quantreg`](https://cran.r-project.org/web/packages/quantreg/quantreg.pdf)</font> to run our conditional quantile regressions [(4-6)](#references). The structure of the command is mirrors the structure of the command to fit linear regression using "lm()". Specifically, we can fit CQR models in R as:
+
+rq(formula, tau, data, method, ...)
+
+In the syntax above, formula takes on the structure "y ~ x", tau refers to the quantile of interest, data refers to the dataset being used, and method refers to the optimization method you want to use to solve the linear programming problem to estimate model parameters. The default method is known as the Barrodale and Roberts algorithm (method = "br"). As the authors of the "quantreg" package suggest, the default optimization method should be perfectly fine even if you have a relatively large dataset with several thousand observations.
+
+Let's begin by fitting a model of SBP on years of schooling at the median without any additional control variables and thinking about how we can interpret the estimate. 
+
+```{r message = F, warning = F}
+
+#install.packages("quantreg")
+library(quantreg) #Conditional quantile regression
+
+# 50th quantile
+cqr_un50 <- rq(sbp ~ schlyrs, data = data, tau = 0.5) 
+summary(cqr_un50)
+
+```
+
+The CQR at the median produces an output that looks very similar to our linear regression output. Notice that we have an intercept term and a coefficient on the "schlyrs" variable. The intercept is our estimate for median SBP among those who have 12 years of schooling (recall that we have centered school years at 12). The coefficient on "schlyrs" can be interpreted as the association of an additional year of schooling with median SBP. So, our results suggest that median SBP among those with 12 years of schooling is 127 mmHg and that each additional year of schooling from 12 years is associated with a 0.9 mmHg reduction in median SBP.
+
+Let's now fit a CQR at the median adjusting for covariates:
+
+```{r message = F, warning = F}
+
+# Preparing data
+data$female <- ifelse(data$gender == 1, 1, 0)
+
+data$black <- ifelse(data$race == 2, 1, 0)
+data$latinx <- ifelse(data$race == 3, 1, 0)
+
+data$y08 <- ifelse(data$year == 2008, 1, 0)
+data$y10 <- ifelse(data$year == 2010, 1, 0)
+data$y12 <- ifelse(data$year == 2012, 1, 0)
+data$y14 <- ifelse(data$year == 2014, 1, 0)
+data$y16 <- ifelse(data$year == 2016, 1, 0)
+data$y18 <- ifelse(data$year == 2018, 1, 0)
+
+# Fully adjusted model
+cqr_adj50 <- rq(sbp ~ schlyrs + age + age2 + female + black + latinx + southern + 
+                  mom_ed + dad_ed + y08 + y10 + y12 + y14 + y16 + y18,
+                data = data, tau = 0.5) 
+summary(cqr_adj50)
+
+```
+
+Notice that our adjusted model also produces an output very similar to the adjusted linear regression output. The interpretation of these estimates is also very similar. For instance, the intercept refers to the median SBP among folks with 12 years of schooling, holding all other covariates constant. The coefficient on "schlyrs" is our estimate for the change in median SBP for each additional year of schooling, holding all other covariates constant. Based on our results, a one year increase in total years of schooling from 12 years is associated with a 0.72 mmHg decrease in median SBP, holding all else constant.
+
+Let's fit another adjusted model at the 25<sup>th</sup> quantile just so we get a bit of practice interpreting.
+
+```{r message = F, warning = F}
+
+# Fully adjusted model at 25th quantile
+cqr_adj25 <- rq(sbp ~ schlyrs + age + age2 + female + black + latinx + southern + 
+                  mom_ed + dad_ed + y08 + y10 + y12 + y14 + y16 + y18,
+                data = data, tau = 0.25) 
+summary(cqr_adj25)
+
+```
+
+The intercept term in this model is our estimate for the 25<sup>th</sup> quantile of SBP for folks with 12 years of schooling, holding all other covariates constant. The coefficient on "schlyrs" is our estimate for the change in the 25<sup>th</sup> quantile of SBP for each additional year of schooling, holding all other covariates constant. Based on our results, a one year increase in total years of schooling from 12 years is associated with a 0.64 mmHg decrease in the 25<sup>th</sup> SBP quantile, holding all else constant.
+
+# <font size = "5" color = "468C8A">Estimating standard errors</font>
+
+```{r message = F, warning = F}
+
+# Fully adjusted model
+cqr_adj50 <- rq(sbp ~ schlyrs + age + age2 + female + black + latinx + southern + 
+                  mom_ed + dad_ed + y08 + y10 + y12 + y14 + y16 + y18,
+                data = data, tau = 0.5) 
+summary.rq(cqr_adj50, se = "boot", R = 50)
+
+```
+
+
+Another way of bootstrapping your standard errors would be as follows:
+
+```{r message = F, warning = F}
+# Bootstrap ci
+cqr_boot50 <- boot.rq(cbind(1, data$schlyrs, data$age, data$age2, data$female,
+                            data$black, data$latinx, data$southern, data$mom_ed,
+                            data$dad_ed, data$y08, data$y10, data$y12, data$y14,
+                            data$y16, data$y18),
+                      data$sbp, tau = 0.5, R = 50)
+ci <- t(apply(cqr_boot50$B, 2, quantile, c(0.025, 0.975)))
+
+```
+
+### <font size = "3" color = "FF9300">Presenting CQR coefficients</font>
+
+```{r warning = F, message = F}
+
+# Fitting CQR models from the 1st to 99th quantiles
+cqr_all <- rq(sbp ~ schlyrs + age + age2 + female + black + latinx + southern + 
+                mom_ed + dad_ed + y08 + y10 + y12 + y14 + y16 + y18,
+              data = data, tau = seq(0.01, 0.99, by = 0.01)) 
+cqr_plot <- summary(cqr_all, se = "boot", R = 50, confint = TRUE)
+
+# Plotting coefficients
+plot(cqr_plot)
+
+# Clearing environment
+rm(cqr_all, cqr_plot)
+
+```
+
+This is, however, not our favorite way to plot CQR results. We think that rather than plotting the all coefficients, it is perhaps most effective to plot coefficients for the exposure variable only. Additionally, the built in "plot" function is not as flexible as "ggplot2", which we love. So, in order to focus the presentation of results on only the exposure variable and to use ggplot while we're at it, we propose the following method of plotting CQR results:
+
+```{r message = F, warning = F}
+
+# Loading the library "jtools"
+library(jtools)                # This package has an excellent function called "summ" which we find makes it very easy to extract bootstrap CIs from CQR models
+
+results.matrix <- matrix(NA, 99, 4)
+
+for (i in 1:99) {
+  
+  # Estimating quantile regression
+  cqr <- rq(sbp ~ schlyrs + age + age2 + female + black + latinx + southern + 
+              mom_ed + dad_ed + y08 + y10 + y12 + y14 + y16 + y18,
+            data = data, tau = i/100)
+  
+  # Creating a summary object
+  summ.obj <- summ(cqr, se = "boot", boot.sims = 50, confint = TRUE)
+  
+  # Adding quantile marker in results.matrix
+  results.matrix[i, 1] <- i
+  
+  # Extracting coefficient on "schlyrs"
+  results.matrix[i, 2] <- summ.obj$coeftable[2,1]
+  
+  # Extracting lower bound of 95% confidence interval on the "schlyrs" point estimate
+  results.matrix[i, 3] <- summ.obj$coeftable[2,2]
+  
+  # Extracting upper bound of 95% confidence interval on the "schlyrs" point estimate
+  results.matrix[i, 4] <- summ.obj$coeftable[2,3]
+  
+}
+
+# Changing matrix to a data frame to plot
+results <- data.frame(results.matrix)
+colnames(results) <- c("quant", "coef", "lci", "uci")
+rm(results.matrix)
+
+# Plotting results
+
+# Axis labels
+yaxis <- expression(Delta~SBP~(mmHg))
+xaxis <- "Quantile"
+
+# Figure
+plot_schlyrs <- ggplot(data = results, aes(x = quant, y = coef)) +
+  geom_line(color = "#468c8a", size = 1) +
+  geom_ribbon(aes(x = quant, ymin = lci, ymax = uci), alpha = 0.45, fill = "#468c8a") +
+  geom_hline(yintercept = 0, color = "#f2494c", linetype = "dotted") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'white'),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  ylab(yaxis) +
+  xlab(xaxis) +
+  labs(title = "Association of educational attainment with systolic blood pressure") +
+  scale_x_continuous(breaks = seq(10, 90, 10),
+                     labels = c("Q10", "Q20", "Q30", "Q40", "Q50", "Q60", "Q70", "Q80", "Q90"))
+
+plot_schlyrs
+
+```
+
+This figure is just a slightly fancier version of the plot that is produced through the in-built plot functionality in the "quantreg" package. We think it looks nicer and could be a good way of displaying CQR results. Notice that educational attainment appears to have a stronger protective association with SBP at higher quantiles of SBP relative to lower quantiles. This suggests that as we go from one level of schooling to another higher level, the SBP distribution is becoming narrower and that the narrowness is due to the higher risk, right tail of the SBP distribution being pulled closer to the center. Notice also how the confidence intervals around the point estimates at higher quantiles is very large: this is an illustration of the idea we saw earlier about how CQR estimates are usually less precise at the tails because data at the tails are usually sparse.
+
+### <font size = "3" color = "FF9300">Illustrating distributional effects</font>
+While the figure above allows us to imagine what sort of effect educational attainment is having on SBP, it doesn't show us explicitly what's happening. Wouldn't it be nice to see, for instance, a density plot at a reference level of educational attainment and then another plot at, say, a higher level of educational attainment and compare those two density plots? Now we're going to create something like that. Please note that this plot has numerous assumptions built into it, which we will discuss in greater detail below. We also want to acknowledge that this plot was inspired by what we saw in [Bind et. al. (2015)](https://ehp.niehs.nih.gov/doi/10.1289/ehp.1307824) and [Bind et. al. (2017)](https://onlinelibrary.wiley.com/doi/10.1002/sim.7423), and we thank Dr. Bind for the generous insights she provided into how she created the plot.
+
+We are going to create this plot as follows: first, we are going to restrict our data to those who have 12 years of schooling. Then, we are going to determine what quantile each individual with 12 years of schooling lies in from the 1<sup>st</sup> to 99<sup>th</sup> quantile of the SBP distribution. Following this, we are going to merge in the association of education with SBP at each quantile. Finally, we are going to predict the new value of SBP for each individual with 12 years of schooling had they had a standard deviation increase in years of schooling.
+
+```{r message = F, warning = F}
+
+# Loading the library "statar" to make the binning process easy
+library(statar)
+
+# Subsetting those with 12 years of schooling (Note that we have centered our educational attainment variable at 0, which is why we are setting schlyrs == 0 here)
+data_12years <- data %>% filter(schlyrs == 0) %>%
+  select("sbp")                 # Keeping only the SBP variable to keep things neat and clean
+
+# Determining the 1st-99th quantile of SBP for those with 12 years of schooling
+data_12years$quant <- xtile(data_12years$sbp, n = 99)
+
+# Creating a dataset of only our coefficient estimates
+coef_estimates <- results %>% select("quant", "coef")
+
+# Merging coefficient estimates with the SBP data for those with 12 years of schooling
+data_12years <- data_12years %>% inner_join(coef_estimates, by = "quant")
+
+# Creating a counterfactual SBP value
+data_12years$counterfactual_sbp <- data_12years$sbp + (data_12years$coef * sd(data$schlyrs))
+
+# Creating a density plot with old density and counterfactual density
+dist_effect <- ggplot(data = data_12years) +
+  geom_density(aes(x = sbp, y = ..density..), color = "#468c8a", size = 1.5) +
+  geom_density(aes(x = counterfactual_sbp, y = ..density..), color = "#f2494c", size = 1.5, linetype = "dotted") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'white'),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  ylab("Density") +
+  xlab("Systolic blood pressure") +
+  labs(title = "Empirical and counterfactual SBP density for individuals with 12 years of school")
+
+dist_effect
+
+```
+
+In the figure above, the solid teal density represents the empirical density of SBP for folks with 12 years of schooling in our data. The dotted rose density represents the SBP density we expect had these individuals experienced a standard deviation increase in years of schooling (~2.4 years). As we would expect based on our point estimates from the different quantile regression models, the right tail of the distribution is being pulled closer to the center in the counterfactual SBP distribution whereas the left tail is relatively unaffected. We think this is an interesting way of visualizing the distributional "effect" of education on SBP among the largest group of folks in our sample in terms of educational attainment.
+
+But, as we said earlier, this figure makes some important assumptions which may or may not hold. The first assumption is that we assume the relationship of education with SBP is the same within unit quantile intervals. For instance, we assume that the relationship of education and SBP between the 10<sup>th</sup> and 11<sup>th</sup> quantiles is the same as the estimated relationship between education and SBP at the 10<sup>th</sup> quantile. This may be an okay assumption to make -- certainly we don't think it's particularly devastating. 
+
+```{r message = F, warning = F}
+
+# Determining quantiles of the counterfactual SBP distribution
+data_12years$quant_new <- xtile(data_12years$counterfactual_sbp, n = 99)
+
+# Checking how many quantiles change
+data_12years$change <- data_12years$quant - data_12years$quant_new
+table(data_12years$change)
+
+```
+
+Another assumption that we appear to effectively make is that of rank invariance. That is, individuals with 12 years of schooling maintain their rank in the SBP distribution even when their education increases by ~2.4 years. Notice how only about 9 folks actually change their quantile value per the table above. Those who work in quantile regressions usually find the rank invariance assumption a bit difficult to justify. We too think that rank invariance is a strong assumption here: we should probably expect a bit more changes in rank under different exposure levels due to randomness. 
+
+### <font size = "3" color = "FF9300">Post-estimation tests</font>
+Fitting so many CQR results raises the question: are our estimates at, say, the 10<sup>th</sup> quantile really different from our estimates at the 90<sup>th</sup> quantile? This is a question we've had in our group a number of times too. We use the anova test in the "quantreg" package to test this hypothesis. For example, say we wanted to test if the 10<sup>th</sup> quantile estimate is statistically different from the 50<sup>th</sup> quantile estimate and if that's different from the 90<sup>th</sup> quantile estimate. We may want to know this in order to understand if our data suggest that a location shift hypothesis best describes the exposure-outcome relationship or if the exposure indeed reshapes the outcome distribution. We can do this test as follows:
+
+```{r message = F, warning = F}
+# Fitting CQR at the 10th, 50th, and 90th quantiles
+cqr_mod10 <- rq(sbp ~ schlyrs + age + age2 + female + black + latinx + southern + 
+                  mom_ed + dad_ed + y08 + y10 + y12 + y14 + y16 + y18,
+                data = data, tau = 0.1) 
+
+cqr_mod50 <- rq(sbp ~ schlyrs + age + age2 + female + black + latinx + southern + 
+                  mom_ed + dad_ed + y08 + y10 + y12 + y14 + y16 + y18,
+                data = data, tau = 0.5) 
+
+cqr_mod90 <- rq(sbp ~ schlyrs + age + age2 + female + black + latinx + southern + 
+                  mom_ed + dad_ed + y08 + y10 + y12 + y14 + y16 + y18,
+                data = data, tau = 0.9)
+
+# Testing the difference in coefficients
+anova(cqr_mod10, cqr_mod50, cqr_mod90)
+```
+
+The test above compared the coefficient on the years of schooling variable across the three models. Additionally, it compared the coefficient on all other covariates included in our model. Then, it gave us a p-value for the significance of all these coefficients being jointly identical. The test procedure is described in Koenker and Bassett (1982). The p-value above suggests that the coefficients are, in fact, statistically distinct from one another at the 5% level.
+
+However, what we really wanted to test was whether the coefficient on years of schooling was identical across the three models and not whether all coefficients together were identical. We haven't figured out a way to do this exactly, but one approach, which isn't entirely satisfactory, is to fit the unadjusted CQR models and then compare them using "anova".
+
+```{r warning = F, message = F}
+
+# Fitting CQR at the 10th, 50th, and 90th quantiles, unadjusted models
+cqr_mod10_unadj <- rq(sbp ~ schlyrs,
+                      data = data, tau = 0.1) 
+
+cqr_mod50_unadj <- rq(sbp ~ schlyrs,
+                      data = data, tau = 0.5) 
+
+cqr_mod90_unadj <- rq(sbp ~ schlyrs,
+                      data = data, tau = 0.9)
+
+# Testing the difference in coefficients
+anova(cqr_mod10_unadj, cqr_mod50_unadj, cqr_mod90_unadj)
+
+```
+
+# <font size = "3" color = "FF9300">CQR Function</font>
+
+Below, we also provide a function that loops through and fits conditional quantile regressions at the 10<sup>th</sup>, 25<sup>th</sup>, 50<sup>th</sup>, 75<sup>th</sup>, and 90<sup>th</sup> quantiles of the conditional outcome distribution.
+
+```{r message = F, warnings = F}
+
+cqr_func <- function(data){
+  
+  conditional_results <- data.frame()
+  
+  for(i in c(0.10, 0.25, 0.50, 0.75, 0.90)){
+    
+    i <- round(i, 2)
+    
+    con <- rq(sbp ~ schlyrs + age + age2 + female + black + latinx + southern + 
+                mom_ed + dad_ed + y08 + y10 + y12 + y14 + y16 + y18,
+              data = data, tau = i) 
+    
+    #Bootstrap estimate (with SE)
+    coef <- summary(con, se = "boot", R = 500)
+    
+    
+    #Bootstrap ci
+    boot <- boot.rq(cbind(1, data$schlyrs, data$age, data$age2, data$female,
+                          data$black, data$latinx, data$southern, data$mom_ed,
+                          data$dad_ed, data$y08, data$y10, data$y12, data$y14,
+                          data$y16, data$y18),
+                    data$sbp, tau = i, R = 500) #Takes a little while to run
+    ci <- t(apply(boot$B, 2, quantile, c(0.025, 0.975)))
+    
+    #Combine estimate and CI
+    cqr_est <- cbind(i, ci, coef$coefficient)
+    rownames(cqr_est) <- rownames(coef$coefficient)
+    
+    schlyr_est <- data.frame(t(cqr_est["schlyrs", 1:4]))
+    
+    conditional_results <- rbind(conditional_results, schlyr_est)
+    
+  }
+  
+  names(conditional_results) <- c("Quantile", "Lower", "Upper",
+                                  "Estimate")
+  conditional_results <- conditional_results %>%
+    dplyr::select(Quantile, Lower, Upper, Estimate)
+  return(conditional_results)
+  
+}
+
+#Run CQR function for desired quantiles
+#cqr_results <- cqr_func(data)
+##Warning: Solution may be nonunique (Produced because of categorical variables in the model)
+
+```
+
+
+# <font size = "6.5" color = "F2494C">Unconditional Quantile Regression (UQR)</font>
+
+# <font size = "3" color = "FF9300">Finding the RIF</font>
+
+```{r message = F, warning = F}
+
+#install.packages("dineq")
+library(dineq) #RIF package
+
+
+#RIF at q25
+data$rif_q25 <- rif(data$sbp, weights = NULL, method = "quantile", 
+                    quantile = 0.25)
+data$rif_q25_r <- round(data$rif_q25, 2)
+
+rif25 <- ggplot(aes(x = factor(rif_q25_r)), data = data) +
+  geom_bar(width = 0.2, fill = "#F2494C") + 
+  labs(x = "RIF Value",
+       y = "Count",
+       title = "25th Quantile")
+
+
+#RIF at q50
+data$rif_q50 <- rif(data$sbp, weights = NULL, method = "quantile", 
+                    quantile = 0.50)
+data$rif_q50_r <- round(data$rif_q50, 2)
+
+rif50 <- ggplot(aes(x = factor(rif_q50_r)), data = data) +
+  geom_bar(width = 0.2, fill = "#468C8A") + 
+  labs(x = "RIF Value",
+       y = "Count",
+       title = "50th Quantile")
+
+
+#RIF at q90
+data$rif_q75 <- rif(data$sbp, weights = NULL, method = "quantile", 
+                    quantile = 0.75)
+data$rif_q75_r <- round(data$rif_q75, 2)
+
+rif75 <- ggplot(aes(x = factor(rif_q75_r)), data = data) +
+  geom_bar(width = 0.2, fill = "#FF9300") + 
+  labs(x = "RIF Value",
+       y = "Count",
+       title = "75th Quantile")
+
+
+#Combine
+rif_vals <- data %>%
+  ungroup() %>%
+  dplyr::select(id, ends_with("_r")) %>%
+  rename("q25" = "rif_q25_r",
+         "q50" = "rif_q50_r",
+         "q75" = "rif_q75_r") %>%
+  pivot_longer(!id, names_to = "Quantile", values_to = "RIF_Values")
+
+rif_comb <- ggplot(aes(x = RIF_Values, fill = factor(Quantile)),
+                   data = rif_vals) +
+  geom_bar(width = 5) +
+  labs(x = "RIF Value",
+       y = "Count",
+       fill = "Quantile",
+       title = "25th, 50th, and 75th Quantiles") +
+  scale_fill_manual(values = c("#F2494C", "#468C8A", "#FF9300")) + 
+  scale_x_continuous(breaks = seq(25, 300, by = 25))
+
+
+(rif25 | rif50) / (rif75 | rif_comb)
+
+```
+
+
+# <font size = "5" color = "468C8A">UQR in R</font>
+
+We will use the <font size = "4">
+[`dineq`](https://cran.r-project.org/web/packages/dineq/dineq.pdf)</font> package to run our unconditional quantile regressions using Firpo's recentered influence function method (RIF-OLS). We will only show bootstrapped confidence intervals since it is the preferred method for adjustments. 
+
+# <font size = "3" color = "FF9300">RIF-OLS with Bootstrapped Confidence Inverals</font>
+
+```{r message = F, warning = F}
+
+data$rif25 <- rif(data$sbp, weights = NULL, method = "quantile",
+                  quantile = 0.25)
+
+uqr_25 <- lm(rif25 ~ schlyrs + age + age2 + gender + race + southern +
+               mom_ed + dad_ed + year, data = data)
+
+#Bootstrap for 95% CIs
+boot_uqr <- function(data, id){
+  fit <- lm(rif25 ~ schlyrs + age + age2 + gender + race + southern + mom_ed +
+              dad_ed + year, data = data[id, ])
+  coef(fit)
+}
+
+b <- boot(data, boot_uqr, 50)
+uqr_ci <- data.frame("index" = NA,
+                     "lower_ci" = NA,
+                     "upper_ci" = NA)
+
+#Loop through all variables
+for(i in 1:nrow(summary(uqr_25)$coefficient)){
+  
+  boot <- boot.ci(b, index = i, type = "perc")
+  uqr_ci[i, "index"] = i
+  uqr_ci[i, "lower_ci"] = boot$percent[, 4]
+  uqr_ci[i, "upper_ci"] = boot$percent[, 5]
+  
+}
+
+uqr_est <- cbind(uqr_ci[, -1], summary(uqr_25)$coefficient)
+rownames(uqr_est) <- rownames(summary(uqr_25)$coefficient)
+uqr_est["schlyrs", ]
+
+```
+
+# <font size = "3" color = "FF9300">UQR Function</font>
+
+```{r message = F, warning = F}
+
+uqr_func <- function(data){
+  
+  uqr_results <- data.frame()
+  
+  for(i in seq(0.01, 0.99, by = 0.01)){
+    
+    i <- round(i, 2)
+    
+    data$rif_sbp <- rif(data$sbp, weights = NULL, method = "quantile",
+                        quantile = i)
+    uqr <- lm(rif_sbp ~ schlyrs + age + age2 + gender + race + southern + 
+                mom_ed + dad_ed + year, data = data)
+    
+    
+    #Bootstrap standard error
+    uqr_boot <- lm.boot(uqr, R = 500)
+    boot_sum <- summary(uqr_boot)
+    
+    uqr_schlyrs_est <- as.numeric(boot_sum$orig.lm$coefficients["schlyrs"])
+    uqr_schlyrs_sd <- as.numeric(boot_sum$stdev.params["schlyrs"])
+    
+    uqr_row <- data.frame("Quantile" = i,
+                          "Estimate" = uqr_schlyrs_est,
+                          "Lower" = uqr_schlyrs_est - (1.96*uqr_schlyrs_sd),
+                          "Upper" = uqr_schlyrs_est + (1.96*uqr_schlyrs_sd),
+                          "regtype" = "UQR")
+    
+    uqr_results <- rbind(uqr_results, uqr_row)
+    
+  }
+  
+  return(uqr_results)
+  
+}
+
+#Run UQR function for desired quantiles
+#uqr_results <- uqr_func(data)
+
+```
+
+
+# <font size = "6.5" color = "F2494C">Summarizing Linear Regression, CQR, and UQR</font>
+
+# <font size = "3" color = "FF9300">Model Estimates Plot</font>
+
+```{r message = F, warning = F}
+
+#install.packages("readxl")
+library(readxl)
+
+#Read in all results
+ols_results <- read_xlsx("qr_didactic_results.xlsx", sheet = "OLS")
+ols_results$regtype = "OLS"
+
+cqr_results <- read_xlsx("qr_didactic_results.xlsx", sheet = "CQR")
+cqr_results$regtype = "CQR"
+
+uqr_results <- read_xlsx("qr_didactic_results.xlsx", sheet = "UQR")
+uqr_results$regtype = "UQR"
+
+
+results <- rbind(ols_results, cqr_results, uqr_results)
+results$regtype <- factor(results$regtype, levels = c("OLS", "CQR", "UQR"))
+
+
+results$Quantile <- ifelse(results$Quantile == -0.1, 0.01, results$Quantile)
+ggplot(data = results %>% filter(regtype != "OLS"),
+       aes(x = Quantile, y = Estimate, group = regtype,
+           color = regtype, fill = regtype)) +
+  geom_line(alpha = 50, linewidth = 0.75) +
+  geom_ribbon(aes(ymin = Lower, ymax = Upper), alpha = 0.27, color = NA) +
+  geom_point(data = results %>% filter(regtype == "OLS")) +
+  geom_errorbar(data = results %>% filter(regtype == "OLS"),
+                aes(ymin = Lower, ymax = Upper), width = 0.01) +
+  geom_hline(yintercept = 0, alpha = 0.5) +
+  geom_vline(xintercept = 5, color = "red", linetype = "dashed") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'white'),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.position = "bottom")  +
+  scale_color_manual(breaks = c("OLS", "CQR", "UQR"),
+                     labels = c("OLS", "CQR", "UQR"),
+                     values = c("#F2494C", "#468C8A", "#FF9300")) +
+  scale_fill_manual(breaks = c("OLS", "CQR", "UQR"),
+                    labels = c("OLS", "CQR", "UQR"),
+                    values = c("#F2494C", "#468C8A", "#FF9300"))  +
+  scale_x_continuous(limits = c(-1, 91),
+                     breaks = c(0, 10, 20, 30, 40, 50,
+                                60, 70, 80, 90),
+                     labels = c("OLS", "q10", "q20", "q30", "q40",
+                                "q50", "q60", "q70", "q80", "q90")) +
+  labs(x = "",
+       y = expression("Education's Association with SBP (" ~ Delta ~
+                        "mmHg)"),
+       color = "Model", group = "Model", fill = "Model") +
+  theme(legend.position = "bottom",
+        strip.background = element_blank(),
+        text = element_text(size = 10))
+
+```
