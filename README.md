@@ -38,9 +38,3 @@ R Core Team (2021). R: A language and environment for statistical computing. R F
 
 StataCorp. 2021. Stata Statistical Software: Release 17. College Station, TX: StataCorp LLC.
 
-
-### Cited Papers
-
-
-
-### Extension Papers
