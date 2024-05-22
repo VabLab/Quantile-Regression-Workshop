@@ -12,6 +12,8 @@ Quantile regression is a powerful method of evaluating how an exposure affects t
 - `UQR Counterfactual Plot.R`: An example script file creating counterfactual plots using estimates from UQR in R.
 - `2023 SER Workshop`: Contains the PowerPoint presentation of the 2023 SER workshop, the R markdown Handout file, and the PDF version of the Handout.
 
+- `Pull SPB Measures.R`: This is an R script to pull and clean SPB measures from the Health and Retirement Study RAND data.
+- `Create Dataset.R`: This is an R script to pull, merge, and clean covariate data from the Health and Retirement Study Tracker and RAND datasets.
 
 Note that no datasets will be made available on this repository due to data usage restrictions. All data can be accessed through the Health and Retirement Study (HRS) public survey files. 
 
