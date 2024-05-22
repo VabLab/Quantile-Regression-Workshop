@@ -1,102 +1,97 @@
-library(tidyverse)
-library(boot)
-library(quantreg)
-library(dineq)
-library(simpleboot)
-
-#------------------------------------------------------------------------------
-# OLS
-#------------------------------------------------------------------------------
-ols_mod <- lm(sbp ~ schlyrs + age + age2 + female + black + latinx + southern + 
-                mom_ed + dad_ed + y08 + y10 + y12 + y14 + y16 + y18, 
-              data = data)
-summary(ols_mod)
-
-#Bootstrap standard error
-ols_boot <- lm.boot(ols_mod, R = 500)
-boot_sum <- summary(ols_boot)
-
-ols_schlyrs_est <- as.numeric(boot_sum$orig.lm$coefficients["schlyrs"])
-ols_schlyrs_sd <- as.numeric(boot_sum$stdev.params["schlyrs"])
-
-ols_row <- data.frame("Quantile" = -0.1,
-                      "Estimate" = ols_schlyrs_est,
-                      "Lower" = ols_schlyrs_est - (1.96*ols_schlyrs_sd),
-                      "Upper" = ols_schlyrs_est + (1.96*ols_schlyrs_sd),
-                      "regtype" = "OLS")
+#Libraries######################################################################
+library(tidyverse) #Data manipulation
+library(boot) #Bootstrapping confidence intervals
+library(quantreg) #CQR
+library(dineq) #UQR
 
 
-#------------------------------------------------------------------------------
-# CQR
-#------------------------------------------------------------------------------
-#Function
-cqr_func <- function(data){
+#OLS Loop#######################################################################
+ols_func <- function(data){
   
-  conditional_results <- data.frame()
+  set.seed(123)
+  ols_mod <- lm(sbp ~ schlyrs_c + age + age2 + gender + race + southern +
+                  mom_ed + dad_ed + year, data = data)
+  summary(ols_mod)
   
-  for(i in seq(0.1, 0.9, by = 0.01)){
-    
-    i <- round(i, 2)
-    
-    con <- rq(sbp ~ schlyrs + age + age2 + female + black + latinx + southern + 
-                mom_ed + dad_ed + y08 + y10 + y12 + y14 + y16 + y18,
-              data = data, tau = i) 
-    coef <- summary(con, se = "boot", bsmethod = "mcmb", R = 500) #Bootstrapped SE
-    
-    #Bootstrap ci
-    boot <- boot.rq(cbind(1, data$schlyrs, data$age, data$age2, data$female,
-                          data$black, data$latinx, data$southern, data$mom_ed,
-                          data$dad_ed, data$y08, data$y10, data$y12, data$y14,
-                          data$y16, data$y18),
-                    data$sbp, tau = i, R = 500) #Takes a little while to run
-    ci <- t(apply(boot$B, 2, quantile, c(0.025, 0.975)))
-    
-    cqr_est <- cbind(i, ci, coef$coefficient)
-    rownames(cqr_est) <- rownames(coef$coefficient)
-    
-    schlyr_est <- data.frame(t(cqr_est["schlyrs", 1:4]))
-    
-    conditional_results <- rbind(conditional_results, schlyr_est)
-    
-  }
+  #Bootstrap standard error
+  ols_boot <- lm.boot(ols_mod, R = 500)
+  boot_sum <- summary(ols_boot)
   
-  names(conditional_results) <- c("Quantile", "Lower", "Upper",
-                                  "Estimate")
-  conditional_results <- conditional_results %>%
-    dplyr::select(Quantile, Estimate, Lower, Upper)
-  conditional_results$regtype <- "CQR"
+  ols_schlyrs_est <- as.numeric(boot_sum$orig.lm$coefficients["schlyrs_c"])
+  ols_schlyrs_sd <- as.numeric(boot_sum$stdev.params["schlyrs_c"])
   
-  return(conditional_results)
+  ols_row <- data.frame("Quantile" = -0.1,
+                        "Estimate" = ols_schlyrs_est,
+                        "Lower" = ols_schlyrs_est - (1.96*ols_schlyrs_sd),
+                        "Upper" = ols_schlyrs_est + (1.96*ols_schlyrs_sd),
+                        "regtype" = "OLS")
+  
+  return(ols_row)
   
 }
 
-cqr_results <- cqr_func(data)
-#Nonunique solutions warning prompted by categorical variables in model
+#ols_results <- ols_func(data)
 
-#------------------------------------------------------------------------------
-# UQR - RIF
-#------------------------------------------------------------------------------
-#Function
-uqr_func <- function(data){
+
+#CQR Loop#######################################################################
+cqr_func <- function(data){
   
-  unconditional_results <- data.frame()
+  result <- data.frame()
   
-  for(i in seq(0.1, 0.9, by = 0.01)){
+  for(i in seq(0.01, 0.99, by = 0.01)){
     
     i <- round(i, 2)
     
-    data$rif_sbp <- rif(data$sbp, weights = NULL, method = "quantile",
-                        quantile = i)
-    uqr <- lm(rif_sbp ~ schlyrs + age + age2 + female + black + latinx +
-                southern + mom_ed + dad_ed + y08 + y10 + y12 + y14 + y16 + y18, 
-              data = data)
+    set.seed(123)
+    cqr_mod <- rq(sbp ~ schlyrs_c + age + age2 + gender + race + southern +
+                    mom_ed + dad_ed + year, data = data, tau = i)
+    
     
     #Bootstrap standard error
-    uqr_boot <- lm.boot(uqr, R = 500)
+    cqr_boot <- summary.rq(cqr_mod, se = "boot", R = 500)
+    cqr_schlyrs_est <- as.numeric(cqr_boot$coefficients["schlyrs_c", "Value"])
+    cqr_schlyrs_sd <- as.numeric(cqr_boot$coefficients["schlyrs_c", 
+                                                       "Std. Error"])
+    
+    cqr_row <- data.frame("Quantile" = i,
+                          "Estimate" = cqr_schlyrs_est,
+                          "Lower" = cqr_schlyrs_est - (1.96*cqr_schlyrs_sd),
+                          "Upper" = cqr_schlyrs_est + (1.96*cqr_schlyrs_sd),
+                          "regtype" = "CQR")
+    
+    result <- rbind(result, cqr_row)
+    
+  }
+  
+  return(result)
+  
+}
+
+#cqr_results <- cqr_func(data)
+
+
+#UQR Loop#######################################################################
+uqr_func <- function(data){
+  
+  result <- data.frame()
+  
+  for(i in seq(0.01, 0.99, by = 0.01)){
+    
+    i <- round(i, 2)
+    data$rif <- rif(data$sbp, weights = NULL, method = "quantile",
+                    quantile = i)
+    
+    set.seed(123)
+    uqr_mod <- lm(rif ~ schlyrs_c + age + age2 + gender + race + southern +
+                    mom_ed + dad_ed + year, data = data)
+    
+    
+    #Bootstrap standard error
+    uqr_boot <- lm.boot(uqr_mod, R = 500)
     boot_sum <- summary(uqr_boot)
     
-    uqr_schlyrs_est <- as.numeric(boot_sum$orig.lm$coefficients["schlyrs"])
-    uqr_schlyrs_sd <- as.numeric(boot_sum$stdev.params["schlyrs"])
+    uqr_schlyrs_est <- as.numeric(boot_sum$orig.lm$coefficients["schlyrs_c"])
+    uqr_schlyrs_sd <- as.numeric(boot_sum$stdev.params["schlyrs_c"])
     
     uqr_row <- data.frame("Quantile" = i,
                           "Estimate" = uqr_schlyrs_est,
@@ -104,14 +99,13 @@ uqr_func <- function(data){
                           "Upper" = uqr_schlyrs_est + (1.96*uqr_schlyrs_sd),
                           "regtype" = "UQR")
     
-    unconditional_results <- rbind(unconditional_results, uqr_row)
+    result <- rbind(result, uqr_row)
     
   }
   
-  return(unconditional_results)
+  return(result)
   
 }
 
-uqr_results <- uqr_func(data)
-
+#uqr_results <- uqr_func(data)
 

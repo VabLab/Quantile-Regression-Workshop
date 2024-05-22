@@ -1,14 +1,13 @@
 /*
 	Title:		Quantile Regression STATA Code
-	Author:		Aayush Khadka, Jilly Hebert, and Anusha Vable
+	Author:		Aayush Khadka, Jilly Hebert, Amanda Irish, and Anusha Vable
 	Institution: University of California, San Francisco
 */
 	
 	****************************************************************************
 	clear all
 	
-	** Setting directories and loading data
-	
+	use QRWorkshop.dta, clear
 	
 	****************************************************************************
 	
@@ -17,22 +16,15 @@
 	****************************************************************************
 	
 	** Create OLS results sheet
-	putexcel set `saveloc'qr_results, modify sheet("OLS")
-	putexcel A1 = "quantile"	
-	putexcel B1 = "coef" //Saves school year estimate
-	putexcel C1 = "lci"	
-	putexcel D1 = "uci"	
-	
+	putexcel set qr_results, modify sheet("OLS")
+	putexcel A1 = "Quantile"	
+	putexcel B1 = "Estimate" //Saves school year estimate
+	putexcel C1 = "Lower"	
+	putexcel D1 = "Upper"	
 	
 	** Bootstrap 95% CI's
 	regress sbp c.schlyrs c.age c.age2 i.gender i.race c.rameduc c.rafeduc //
 	i.southern i.year, vce(boostrap, reps(500))
-	
-	** Other modeling option
-	*regress sbp c.schlyrs c.age c.age2 i.female i.black i.latinx //
-	*c.rameduc c.rafeduc i.southern i.y08 i.y10 i.y12 i.y14 i.y16 i.y18, //
-	*vce(bootstrap, reps(500))
-	
 	
 	** Extracting results
 	matrix param = r(table)	
@@ -51,11 +43,11 @@
 	****************************************************************************
 	
 	** Create CQR results sheet
-	putexcel set `saveloc'qr_results.xlsx, modify sheet("CQR")
-	putexcel A1 = "quantile"			
-	putexcel B1 = "coef" //Saves school year estimate
-	putexcel C1 = "lci"	
-	putexcel D1 = "uci"	
+	putexcel set qr_results.xlsx, modify sheet("CQR")
+	putexcel A1 = "Quantile"			
+	putexcel B1 = "Estiamte" //Saves school year estimate
+	putexcel C1 = "Lower"	
+	putexcel D1 = "Upper"	
 	
 	** Creating a counter
 	local c = 2
@@ -65,11 +57,6 @@
 		
 		bsqreg sbp c.schlyrs c.age c.age2 i.gender i.race //
 		c.rameduc c.rafeduc i.southern i.year, quantile(`i') reps(500)
-		
-		** Other modeling option
-		*bsqreg sbp c.schlyrs c.age c.age2 i.female i.black i.latinx //
-		*c.rameduc c.rafeduc i.southern i.y08 i.y10 i.y12 i.y14 i.y16 i.y18, //
-		*quantile(`i') reps(500)
 		
 		** Extracting results
 		matrix param = r(table)
@@ -92,12 +79,12 @@
 	
 	****************************************************************************
 	
-	** Create CQR results sheet
-	putexcel set `saveloc'qr_results.xlsx, modify sheet("UQR")
-	putexcel A1 = "quantile"			
-	putexcel B1 = "coef" //Saves school year estimate
-	putexcel C1 = "lci"	
-	putexcel D1 = "uci"	
+	** Create UQR results sheet
+	putexcel set qr_results.xlsx, modify sheet("UQR")
+	putexcel A1 = "Quantile"			
+	putexcel B1 = "Estimate" //Saves school year estimate
+	putexcel C1 = "Lower"	
+	putexcel D1 = "Upper"	
 	
 	** Creating a counter
 	local c = 2
@@ -107,11 +94,6 @@
 		
 		rifhdreg sbp c.schlyrs c.age c.age2 i.gender i.race c.rameduc //
 		c.rafeduc i.southern i.year, rif(q(`i')) vce(bootstrap, reps(500))
-		
-		** Other modeling option
-		*rifhdreg sbp c.schlyrs c.age c.age2 i.female i.black i.latinx //
-		*c.rameduc c.rafeduc i.southern i.y08 i.y10 i.y12 i.y14 i.y16 i.y18, //
-		*rif(q(`i')) vce(bootstrap, reps(500))
 		
 		** Extracting results
 		matrix param = r(table)
