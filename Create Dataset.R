@@ -96,8 +96,12 @@ final_data <- final_data %>%
   dplyr::filter(firstiw >= 1998) %>%
   dplyr::filter(birthplc != "Not in US") %>%
   dplyr::filter(age >= 51) %>%
-  dplyr::select(hhidpn, age, age2, gender, race, birthyr, birthplc, schlyrs,
-                rameduc, rafeduc, wave, year, sbp)
+  dplyr::select(hhidpn, age, age2, gender, race, birthplc, schlyrs,
+                rameduc, rafeduc, year, sbp) %>%
+  rename("id" = "hhidpn",
+         "southern" = "birthplc",
+         "mom_ed" = "rameduc",
+         "dad_ed" = "rafeduc")
 
 #Complete cases
 fin <- final_data[complete.cases(final_data), ]
