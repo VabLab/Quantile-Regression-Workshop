@@ -10,7 +10,6 @@ Quantile regression is a powerful method of evaluating how an exposure affects t
 - `2024 SER Workshop.pptx`: This is a copy of the 2024 SER Workshop presentation.
 - `QRHandout.Rmd`: This is an R markdown file that creates the handout (also provided in HTML and PDF format) with code and descriptions. Knit to HTML **only** (due to the animation plot) and allow 10-15 minutes to compile; if the markdown fails to compile to HTML, check that all packages are installed and that you are using the most up to date version of R and R Studio.
 - `QRHandout.html`: This is the HTML version of the QR Handout when knit in R.
-- `QRHandout.pdf`: A PDF version of the QR Handout.
 - `Pull SPB Measures.R`: This is an R script to pull and clean SPB measures from the Health and Retirement Study RAND data.
 - `Create Dataset.R`: This is an R script to pull, merge, and clean covariate data from the Health and Retirement Study Tracker and RAND datasets.
 - `R_QR.R`: An example script file implementing quantile regression in R.
