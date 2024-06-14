@@ -704,6 +704,7 @@ uqr_func <- function(data){
 #Read in paper results to save time and separate by model
 ###Replace this with function code results from above if running yourself
 all_results <- readRDS("Results/AllResults.rds") 
+names(all_results) <- c("Quantile", "Estimate", "Lower", "Upper", "regtype")
 ols_results <- all_results[all_results$regtype == "OLS", ]
 ols_results$quantile <- -1
 
@@ -719,9 +720,9 @@ xaxis <- "Quantile"
 
 
 #CQR figure#####################################################################
-ggplot(data = cqr_results, aes(x = quantile, y = est)) +
+ggplot(data = cqr_results, aes(x = Quantile, y = Estimate)) +
   geom_line(color = dark_teal, linewidth = 1) +
-  geom_ribbon(aes(x = quantile, ymin = lci, ymax = uci), 
+  geom_ribbon(aes(x = Quantile, ymin = Lower, ymax = Upper), 
               alpha = 0.45, fill = dark_teal) +
   geom_hline(yintercept = 0, color = "red", linetype = "dotted") +
   theme(panel.background = element_rect(fill = 'white', colour = 'white'),
@@ -736,9 +737,9 @@ ggplot(data = cqr_results, aes(x = quantile, y = est)) +
 
 
 #UQR figure#####################################################################
-ggplot(data = uqr_results, aes(x = quantile, y = est)) +
+ggplot(data = uqr_results, aes(x = Quantile, y = Estimate)) +
   geom_line(color = tangerine, linewidth = 1) +
-  geom_ribbon(aes(x = quantile, ymin = lci, ymax = uci), 
+  geom_ribbon(aes(x = Quantile, ymin = Lower, ymax = Upper), 
               alpha = 0.45, fill = tangerine) +
   geom_hline(yintercept = 0, color = "red", linetype = "dotted") +
   theme(panel.background = element_rect(fill = 'white', colour = 'white'),
@@ -755,7 +756,6 @@ ggplot(data = uqr_results, aes(x = quantile, y = est)) +
 #All results figure#############################################################
 all_results$regtype <- factor(all_results$regtype, 
                               levels = c("OLS", "CQR", "UQR"))
-names(all_results) <- c("Quantile", "Estimate", "Lower", "Upper", "regtype")
 
 ggplot(data = all_results %>% filter(regtype != "OLS"),
        aes(x = Quantile, y = Estimate, group = regtype,
@@ -798,10 +798,10 @@ ggplot(data = all_results %>% filter(regtype != "OLS"),
 counter_data <- function(results, data){
   
   coef <- results %>%
-    dplyr::filter(regtype == "UQR") %>% #Change model here if you want to create a CQR plot (or remove and use one model's dataset)
-    dplyr::select(quantile, est) %>%
-    rename("quant" = "quantile",
-           "coef" = "est")
+    dplyr::filter(regtype == "UQR") %>% #Change model here if you want to create a CQR plot
+    dplyr::select(Quantile, Estimate) %>%
+    rename("quant" = "Quantile",
+           "coef" = "Estimate")
   coef$quant <- round(coef$quant, 1) #Need to round for merging
   
   red <- data %>%
