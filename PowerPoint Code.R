@@ -128,7 +128,7 @@ summary(ols)$coefficients["schlyrs_c", ]
 ggplot(data = data, aes(x = schlyrs, y = sbp)) +
   geom_point() +
   geom_quantile(quantiles = 0.5, formula = y ~ x, 
-                color = dark_rose, size = 1) +
+                color = dark_rose, linewidth = 1) +
   theme(panel.background = element_rect(fill = 'white', colour = 'white'),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -179,9 +179,9 @@ ggplot(data = data, aes(x = schlyrs, y = sbp)) +
 df_sbp_quantiles <- data %>%
   group_by(schlyrs) %>%
   summarise(mean_sbp = mean(sbp, na.rm = TRUE),
+            sbp_q25 = quantile(sbp, 0.25),
             sbp_q50 = quantile(sbp, 0.5),
-            sbp_q75 = quantile(sbp, 0.75),
-            sbp_q25 = quantile(sbp, 0.25))
+            sbp_q75 = quantile(sbp, 0.75))
 
 #Conditional regression line approximates the conditional quantile function
 ggplot(data = df_sbp_quantiles, aes(x = schlyrs, y = sbp_q25)) +
@@ -237,8 +237,33 @@ data_out <- rbind(data_out, outlier)
 mean(data$sbp) #127.63
 mean(data_out$sbp) #240.28
 
-median(data$sbp) #125.5
-median(data_out$sbp) #125.5
+quantile(data$sbp, probs = 0.75) #138.5
+quantile(data_out$sbp, probs = 0.75) #138.5
+
+
+#Density distribution###########################################################
+mn_sbp <- mean(data$sbp, na.rm = TRUE)
+q75_sbp <- quantile(data$sbp, 0.75)
+
+ann1 <- data.frame(x = 149.5, y = 0.027, label = "Q75 = 138.5mmHg")
+ann2 <- data.frame(x = 115.5, y = 0.027, label = "Mean = 127.6mmHg")
+ggplot(data = data, aes(x = sbp)) +
+  geom_density(color = dark_teal, size = 2) +
+  geom_vline(xintercept = mn_sbp, color = tangerine, size = 2) +
+  geom_vline(xintercept = q75_sbp, color = dark_rose, size = 2) +
+  geom_text(data = ann1, aes(x = x, y = y, label = label), 
+            color = dark_rose, size = 4, fontface = "bold") +
+  geom_text(data = ann2, aes(x = x, y = y, label = label), 
+            color = tangerine, size = 4, fontface = "bold") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'white'),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12),
+        axis.title = element_text(size = 13.5, face = "bold"),
+        plot.title = element_text(size = 16, face = "bold"),
+        legend.position = "bottom") +
+  xlab("Systolic blood pressure (mmHg)") +
+  ylab("Density")
 
 
 #Top coding#####################################################################
@@ -381,12 +406,19 @@ ggplot(data = ols_counter_long, aes(x = sbp, color = model,
         text = element_text(size = 20)) + 
   labs(color = "Distribution",
        linetype = "Distribution",
-       x = "SBP (mmHg)",
+       x = "Systolic blood pressure (mmHg)",
        y = "Density") +
   scale_color_manual(values = c("Factual" = dark_teal, 
                                 "Counterfactual" = tangerine)) +
   scale_linetype_manual(values = c("Factual" = "solid", 
-                                   "Counterfactual" = "dashed"))
+                                   "Counterfactual" = "dashed")) +
+  theme(panel.background = element_rect(fill = 'white', colour = 'white'),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12),
+        axis.title = element_text(size = 13.5, face = "bold"),
+        plot.title = element_text(size = 16, face = "bold"),
+        legend.position = "bottom")
 
 
 #CQR counterfactual plot @ 12 years#############################################
@@ -433,12 +465,19 @@ ggplot(data = data_12years_long, aes(x = sbp, color = model,
         text = element_text(size = 20)) + 
   labs(color = "Distribution",
        linetype = "Distribution",
-       x = "SBP (mmHg)",
+       x = "Systolic blood pressure (mmHg)",
        y = "Density") +
   scale_color_manual(values = c("Factual" = dark_teal, 
                                 "Counterfactual" = tangerine)) +
   scale_linetype_manual(values = c("Factual" = "solid", 
-                                   "Counterfactual" = "dashed"))
+                                   "Counterfactual" = "dashed")) +
+  theme(panel.background = element_rect(fill = 'white', colour = 'white'),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 12),
+        axis.title = element_text(size = 13.5, face = "bold"),
+        plot.title = element_text(size = 16, face = "bold"),
+        legend.position = "bottom")
 
 
 #RIF Plot#######################################################################
