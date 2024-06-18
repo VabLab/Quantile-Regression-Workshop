@@ -218,14 +218,14 @@ summary(cqr_25)$coefficients["schlyrs_c", ]
 cqr_int <- rq(sbp ~ 1, data = data, tau = 0.25)
 res_cqr_int <- resid(cqr_int)
 
-#Compared to exposure only
-res_un_cqr_25 <- resid(un_cqr_25)
-goodfit(res_un_cqr_25, res_cqr_int, tau = 0.25) #Value between 0-1
-
-
 #Compared to fully adjusted
 res_cqr_25 <- resid(cqr_25)
 goodfit(res_cqr_25, res_cqr_int, tau = 0.25)
+
+
+#Compared to exposure only
+# res_un_cqr_25 <- resid(un_cqr_25)
+# goodfit(res_un_cqr_25, res_cqr_int, tau = 0.25) #Value between 0-1
 
 
 #How an outlier changes the distribution########################################
@@ -867,6 +867,7 @@ counter_data <- function(results, data){
 
 #Create counterfactual data
 uqr_counter <- counter_data(all_results, data)
+summary(uqr_counter)
 
 
 #Look at distribution characteristics
