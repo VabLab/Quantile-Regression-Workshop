@@ -745,7 +745,6 @@ uqr_func <- function(data){
 all_results <- readRDS("Results/AllResults.rds") 
 names(all_results) <- c("Quantile", "Estimate", "Lower", "Upper", "regtype")
 ols_results <- all_results[all_results$regtype == "OLS", ]
-ols_results$quantile <- -1
 
 cqr_results <- all_results[all_results$regtype == "CQR", ]
 cqr_results$regtype = "CQR"
@@ -809,7 +808,8 @@ ggplot(data = all_results %>% filter(regtype != "OLS"),
   theme(panel.background = element_rect(fill = 'white', colour = 'white'),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
-        legend.position = "bottom")  +
+        legend.position = "bottom",
+        text = element_text(size = 10))  +
   scale_color_manual(breaks = c("OLS", "CQR", "UQR"),
                      labels = c("OLS", "CQR", "UQR"),
                      values = c(dark_rose, dark_teal, tangerine)) +
@@ -823,13 +823,7 @@ ggplot(data = all_results %>% filter(regtype != "OLS"),
                                 "q50", "q60", "q70", "q80", "q90", "q99")) +
   labs(x = "",
        y = yaxis,
-       color = "Model", group = "Model", fill = "Model") +
-  theme(legend.position = "bottom",
-        strip.background = element_blank(),
-        text = element_text(size = 10)) +
-  theme(panel.background = element_rect(fill = 'white', colour = 'white'),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank())
+       color = "Model", group = "Model", fill = "Model")
 
 
 #UQR counterfactual plot########################################################
