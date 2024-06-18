@@ -16,7 +16,7 @@ Quantile regression is a powerful method of evaluating how an exposure affects t
 - `STATA_QR.do`: An example Do file implementing quantile regression in STATA.
 - `2023 SER Workshop` Folder: Contains the PowerPoint presentation of the 2023 SER workshop, the R markdown Handout file, and the PDF version of the Handout.
 
-Note that no datasets will be made available on this repository due to data usage restrictions. All data can be accessed through the Health and Retirement Study (HRS) public survey files. 
+Note that no datasets will be made available on this repository due to data usage restrictions. All data can be accessed through the Health and Retirement Study (HRS) public survey files. Files include the Cross-Wave Tracker file (STATA) and the 2018 RAND HRS Longitudinal File (STATA). Tracker data has been update past 2018, so please note your compiled dataset might look different since we use 2018 Tracker data. 
 
 
 # Contact Information
