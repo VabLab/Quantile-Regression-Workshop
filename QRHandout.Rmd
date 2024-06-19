@@ -1305,7 +1305,7 @@ Just like with CQR, we can use model estimates from UQR to create counterfactual
 counter_data <- function(results, data){
   
   coef <- results %>%
-    dplyr::filter(regtype == "UQR") %>%
+    dplyr::filter(regtype == "UQR") %>% #Change this if you want a CQR plot
     dplyr::select(Quantile, Estimate) %>%
     rename("quant" = "Quantile",
            "coef" = "Estimate")
@@ -1421,7 +1421,8 @@ ggplot(data = all_results %>% filter(regtype != "OLS"),
   theme(panel.background = element_rect(fill = 'white', colour = 'white'),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
-        legend.position = "bottom")  +
+        legend.position = "bottom",
+        text = element_text(size = 10))  +
   scale_color_manual(breaks = c("OLS", "CQR", "UQR"),
                      labels = c("OLS", "CQR", "UQR"),
                      values = c("#F2494C", "#468C8A", "#FF9300")) +
@@ -1435,10 +1436,7 @@ ggplot(data = all_results %>% filter(regtype != "OLS"),
                                 "q50", "q60", "q70", "q80", "q90", "q99")) +
   labs(x = "",
        y = yaxis,
-       color = "Model", group = "Model", fill = "Model") +
-  theme(legend.position = "bottom",
-        strip.background = element_blank(),
-        text = element_text(size = 10))
+       color = "Model", group = "Model", fill = "Model")
 
 ```
 

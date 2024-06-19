@@ -9,7 +9,6 @@ library(quantreg) #Conditional quantile regression
 library(WRTDStidal) #Goodness of fit for CQR models
 library(statar) #Bin data into quantiles
 library(jtools) #summ function for bootstrapped CIs for CQR
-library(statar) #Bin SBP into quantiles
 library(dineq) #RIF package
 library(readxl) #Read in excel results
 
