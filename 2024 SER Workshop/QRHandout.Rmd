@@ -1,7 +1,7 @@
 ---
 title: <font size = "6" color = "F2494C">A Primer on Quantile Regression for Epidemiologists</font>
-subtitle: <font size = "4">SER 2025 Workshop</font>
-author: <font size = "3">Jilly Hebert, Amanda Irish, and Anusha Vable</font>
+subtitle: <font size = "4">SER 2024 Workshop</font>
+author: <font size = "3">Aayush Khadka, Jilly Hebert, Amanda Irish, and Anusha Vable</font>
 output:
   html_document: default
   pdf_document: default
@@ -19,9 +19,7 @@ knitr::opts_chunk$set(echo = TRUE)
 Welcome to <font size = "3" color = "FF9300">A Primer on Quantile Regression for Epidemiologists!</font> We are excited to have you here with us today! This document will serve as a companion to the slide deck which forms the basis of our discussion in today's workshop. 
 
 ## <font size = "5" color = "468C8A">Workshop background</font>
-Our workshop builds off of a paper we have written as an introduction to quantile regression methods for epidemiologists. This paper is entitled "Quantile regressions as a tool to evaluate how an exposure shifts and reshapes the outcome distribution: A primer for epidemiologists" and is available on American Journal of Epidemiology at this [link](https://academic.oup.com/aje/advance-article-abstract/doi/10.1093/aje/kwae246/7726840?redirectedFrom=fulltext). The paper was supported by a grant from the National Institute on Aging (R01 AG069092, PI Vable).
-
-While no longer with our team, this workshop would not be possible without Aayush Khadka, first author of our didactic paper. 
+Our workshop builds off of a paper we have written as an introduction to quantile regression methods for epidemiologists. This paper is entitled "Quantile regressions as a tool to evaluate how an exposure shifts and reshapes the outcome distribution: A primer for epidemiologists" and is available on medRxiv at this [link](https://www.medrxiv.org/content/10.1101/2023.05.02.23289415v1). The paper was supported by a grant from the National Institute on Aging (R01 AG069092, PI Vable).
 
 ## <font size = "5" color = "468C8A">Overall learning aims</font>
 The learning aims of this workshop can be grouped into two categories: theory and practice. In terms of theory, our aim is to introduce you to quantile regression concepts by contrasting quantile regression with mean regression and, additionally, contrasting estimators targeted at quantiles of the conditional versus unconditional outcome distribution. In terms of practice, our goal is to provide you with code to conduct quantile regression analyses, to run various post-estimation tests, to present quantile regression coefficients, and to visualize how quantile regression results can be used to demonstrate the distributional effects of an exposure.
@@ -788,14 +786,14 @@ cqr_results <- cqr_func(data)
 #Plotting results
 #Axis labels
 yaxis <- expression(Delta~SBP~(mmHg))
-xaxis <- ""
+xaxis <- "Quantile"
 
 #Figure
 ggplot(data = cqr_results, aes(x = Quantile, y = Estimate)) +
   geom_line(color = "#468c8a", size = 1) +
   geom_ribbon(aes(x = Quantile, ymin = Lower, ymax = Upper), 
               alpha = 0.45, fill = "#468c8a") +
-  geom_hline(yintercept = 0, alpha = 0.5) +
+  geom_hline(yintercept = 0, color = "red", linetype = "dotted") +
   theme(panel.background = element_rect(fill = 'white', colour = 'white'),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank()) +
@@ -809,48 +807,6 @@ ggplot(data = cqr_results, aes(x = Quantile, y = Estimate)) +
 ```
 
 This figure is just a slightly fancier version of the plot that is produced through the in-built plot functionality in the "quantreg" package. We think it looks nicer and could be a good way of displaying CQR results. Notice that educational attainment appears to have a stronger protective association with SBP at higher quantiles of SBP relative to lower quantiles. This suggests that as we go from one level of schooling to another higher level, the SBP distribution is becoming narrower and that the narrowness is due to the higher risk, right tail of the SBP distribution being pulled closer to the center. Notice also how the confidence intervals around the point estimates at higher quantiles are very large: this is an illustration of the idea we saw earlier about how CQR estimates are usually less precise at the tails because data at the tails are usually sparse.
-
-We can also add our OLS estimate to the CQR plot so viewers can easily compare estimates at the mean to estimates at each quantile of the unconditional distribution.
-
-```{r}
-
-ols_cqr <- rbind(ols_results, cqr_results)
-
-#Figure
-ggplot(data = ols_cqr %>% filter(regtype != "OLS"),
-       aes(x = Quantile, y = Estimate, group = regtype,
-           color = regtype, fill = regtype)) +
-  geom_line(alpha = 50, linewidth = 0.75) +
-  geom_ribbon(aes(ymin = Lower, ymax = Upper), alpha = 0.27, color = NA) +
-  geom_point(data = ols_cqr %>% filter(regtype == "OLS")) +
-  geom_errorbar(data = ols_cqr %>% filter(regtype == "OLS"),
-                aes(ymin = Lower, ymax = Upper), width = 0.01) +
-  geom_hline(yintercept = 0, alpha = 0.5) +
-  geom_vline(xintercept = -0.04, color = "gray", linetype = "dashed") +
-  theme(panel.background = element_rect(fill = 'white', colour = 'white'),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        legend.position = "bottom",
-        text = element_text(size = 10))  +
-  scale_color_manual(breaks = c("OLS", "CQR"),
-                     labels = c("OLS", "CQR"),
-                     values = c("#F2494C", "#468c8a")) +
-  scale_fill_manual(breaks = c("OLS", "CQR"),
-                    labels = c("OLS", "CQR"),
-                    values = c("#F2494C", "#468c8a"))  +
-  scale_x_continuous(limits = c(-0.11, 1),
-                     breaks = c(-0.1, 0.01, seq(0.10, 0.90, 0.10), 0.99),
-                     labels = c("OLS", "q1", "q10", "q20", "q30", "q40", "q50", 
-                                "q60", "q70", "q80", "q90", "q99")) +
-  labs(x = "",
-       y = yaxis,
-       color = "Model", group = "Model", fill = "Model") +
-  theme(legend.position = "bottom",
-        legend.box.spacing = unit(0, "pt"),
-        legend.margin = margin(-10,0,0,0),
-        text = element_text(size = 15))
-
-```
 
 ### <font size = "3" color = "FF9300">Illustrating distributional effects</font>
 While the figure above allows us to imagine what sort of effect educational attainment is having on SBP, it doesn't show us explicitly what's happening. Wouldn't it be nice to see, for instance, a density plot at a reference level of educational attainment and then another plot at, say, a higher level of educational attainment and compare those two density plots? Now we're going to create something like that. Please note that this plot has numerous assumptions built into it, which we will discuss in greater detail below. We also want to acknowledge that this plot was inspired by what we saw in [Bind et. al. (2015)](https://ehp.niehs.nih.gov/doi/10.1289/ehp.1307824) and [Bind et. al. (2017)](https://onlinelibrary.wiley.com/doi/10.1002/sim.7423), and we thank Dr. Bind for the generous insights she provided into how she created the plot.
@@ -1325,7 +1281,7 @@ ggplot(data = uqr_results, aes(x = Quantile, y = Estimate)) +
   geom_line(color = "#FF9300", size = 1) +
   geom_ribbon(aes(x = Quantile, ymin = Lower, ymax = Upper), 
               alpha = 0.45, fill = "#FF9300") +
-  geom_hline(yintercept = 0, alpha = 0.5) +
+  geom_hline(yintercept = 0, color = "red", linetype = "dotted") +
   theme(panel.background = element_rect(fill = 'white', colour = 'white'),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank()) +
@@ -1339,49 +1295,6 @@ ggplot(data = uqr_results, aes(x = Quantile, y = Estimate)) +
 
 ```
 
-We can also add our OLS estimate to the UQR plot so viewers can easily compare estimates at the mean to estimates at each quantile of the unconditional distribution.
-
-```{r}
-
-ols_uqr <- rbind(ols_results, uqr_results)
-
-#Figure
-ggplot(data = ols_uqr %>% filter(regtype != "OLS"),
-       aes(x = Quantile, y = Estimate, group = regtype,
-           color = regtype, fill = regtype)) +
-  geom_line(alpha = 50, linewidth = 0.75) +
-  geom_ribbon(aes(ymin = Lower, ymax = Upper), alpha = 0.27, color = NA) +
-  geom_point(data = ols_uqr %>% filter(regtype == "OLS")) +
-  geom_errorbar(data = ols_uqr %>% filter(regtype == "OLS"),
-                aes(ymin = Lower, ymax = Upper), width = 0.01) +
-  geom_hline(yintercept = 0, alpha = 0.5) +
-  geom_vline(xintercept = -0.04, color = "gray", linetype = "dashed") +
-  theme(panel.background = element_rect(fill = 'white', colour = 'white'),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        legend.position = "bottom",
-        text = element_text(size = 10))  +
-  scale_color_manual(breaks = c("OLS", "UQR"),
-                     labels = c("OLS", "UQR"),
-                     values = c("#F2494C", "#FF9300")) +
-  scale_fill_manual(breaks = c("OLS", "UQR"),
-                    labels = c("OLS", "UQR"),
-                    values = c("#F2494C", "#FF9300"))  +
-  scale_x_continuous(limits = c(-0.11, 1),
-                     breaks = c(-0.1, 0.01, seq(0.10, 0.90, 0.10), 0.99),
-                     labels = c("OLS", "q1", "q10", "q20", "q30", "q40", "q50", 
-                                "q60", "q70", "q80", "q90", "q99")) +
-  labs(x = "",
-       y = yaxis,
-       color = "Model", group = "Model", fill = "Model")  +
-  theme(legend.position = "bottom",
-        legend.box.spacing = unit(0, "pt"),
-        legend.margin = margin(-10,0,0,0),
-        text = element_text(size = 15))
-
-```
-
-
 # <font size = "3" color = "FF9300">UQR Counterfactual Disribution</font>
 
 Just like with CQR, we can use model estimates from UQR to create counterfactual distributions of SBP. We impose our estimates at each quantile and plot what the new counterfactual distribution could look like.
@@ -1392,7 +1305,7 @@ Just like with CQR, we can use model estimates from UQR to create counterfactual
 counter_data <- function(results, data){
   
   coef <- results %>%
-    dplyr::filter(regtype == "UQR") %>%
+    dplyr::filter(regtype == "UQR") %>% #Change this if you want a CQR plot
     dplyr::select(Quantile, Estimate) %>%
     rename("quant" = "Quantile",
            "coef" = "Estimate")
@@ -1446,6 +1359,8 @@ ggplot(data = uqr_counter, aes(x = sbp, color = group, linetype = group)) +
 ```
 
 
+
+
 # <font size = "5" color = "468C8A">Key Takeaways</font>
 
 1. Estimating the change in the unconditional quantile using conditional quantile regression estimates is difficult
@@ -1476,14 +1391,65 @@ Interpretation | One unit increase in the independent variable of interest is as
 
 # <font size = "5" color = "468C8A">Comparing Model Estimations</font>
 
-It's important to note that confidence intervals can get quite wide at the tails of the distribution, due to low density. Because of this, some researchers present only the 10<sup>th</sup> through the 90<sup>th</sup> quantiles, but we prefer to present results from the 1<sup>st</sup> through the 99<sup>th</sup> quantiles. Finally, remember that 
+It's important to note that confidence intervals can get quite wide at the tails of the distribution, due to low density. Because of this, some researchers present only the 10<sup>th</sup> through the 90<sup>th</sup> quantiles, but we prefer to present results from the 1<sup>st</sup> through the 99<sup>th</sup> quantiles.
 
->Even if CQR and UQR estimates appear similar, they are estimating different estimands and connot be directly compared!
+In addition to displaying plots of the CQR and UQR estimates individually, we include a plot displaying both the CQR and UQR estimates together. It's important to keep in mind that 
+
+> CQR and UQR estimates may be quite different, but even when they are similar, remember that they are estimating quite different estimands!
+
+Typically, these estimates would never be modeled together since they are answering different research questions. We model them together simply for visual comparison of estimates.
+
+# <font size = "3" color = "FF9300">Model Estimates Plot</font>
+
+```{r message = F, warning = F}
+
+#All models together
+all_results <- rbind(ols_results, cqr_results, uqr_results)
+all_results$regtype <- factor(all_results$regtype, 
+                              levels = c("OLS", "CQR", "UQR"))
+
+ggplot(data = all_results %>% filter(regtype != "OLS"),
+       aes(x = Quantile, y = Estimate, group = regtype,
+           color = regtype, fill = regtype)) +
+  geom_line(alpha = 50, linewidth = 0.75) +
+  geom_ribbon(aes(ymin = Lower, ymax = Upper), alpha = 0.27, color = NA) +
+  geom_point(data = all_results %>% filter(regtype == "OLS")) +
+  geom_errorbar(data = all_results %>% filter(regtype == "OLS"),
+                aes(ymin = Lower, ymax = Upper), width = 0.01) +
+  geom_hline(yintercept = 0, alpha = 0.5) +
+  geom_vline(xintercept = -0.04, color = "grey", linetype = "dashed") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'white'),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.position = "bottom",
+        text = element_text(size = 10))  +
+  scale_color_manual(breaks = c("OLS", "CQR", "UQR"),
+                     labels = c("OLS", "CQR", "UQR"),
+                     values = c("#F2494C", "#468C8A", "#FF9300")) +
+  scale_fill_manual(breaks = c("OLS", "CQR", "UQR"),
+                    labels = c("OLS", "CQR", "UQR"),
+                    values = c("#F2494C", "#468C8A", "#FF9300"))  +
+  scale_x_continuous(limits = c(-0.2, 1),
+                     breaks = c(-0.1, 0.01, 0.10, 0.20, 0.30, 0.40, 0.50,
+                                0.60, 0.70, 0.80, 0.90, 0.99),
+                     labels = c("OLS", "q1", "q10", "q20", "q30", "q40",
+                                "q50", "q60", "q70", "q80", "q90", "q99")) +
+  labs(x = "",
+       y = yaxis,
+       color = "Model", group = "Model", fill = "Model")
+
+```
+
 
 # <font size = "6.5" color = "F2494C">Contact Information</font> {#contact-information}
 
 We'd love to hear feedback or answer any questions you still have!
 Please feel free to reach out to us through email at any time.
+
+Aayush Khadka
+<font size = "2.9">[aayush.khadka\@ucsf.edu](mailto:aayush.khadka@ucsf.edu){.email}</font>\
+Department of Family and Community Medicine, University of California,
+San Francisco
 
 Jilly Hebert
 <font size = "2.9">[jilly.hebert\@ucsf.edu](mailto:jilly.hebert@ucsf.edu){.email}</font>\

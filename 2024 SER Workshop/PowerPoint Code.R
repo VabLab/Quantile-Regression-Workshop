@@ -753,58 +753,54 @@ uqr_results$regtype = "UQR"
 
 #Define axis labels
 yaxis <- expression(Delta~SBP~(mmHg))
-xaxis <- ""
+xaxis <- "Quantile"
 
 
 #CQR figure#####################################################################
-ols_cqr <- rbind(ols_results, cqr_results)
-
-#Figure
-ggplot(data = ols_cqr %>% filter(regtype != "OLS"),
-       aes(x = Quantile, y = Estimate, group = regtype,
-           color = regtype, fill = regtype)) +
-  geom_line(alpha = 50, linewidth = 0.75) +
-  geom_ribbon(aes(ymin = Lower, ymax = Upper), alpha = 0.27, color = NA) +
-  geom_point(data = ols_cqr %>% filter(regtype == "OLS")) +
-  geom_errorbar(data = ols_cqr %>% filter(regtype == "OLS"),
-                aes(ymin = Lower, ymax = Upper), width = 0.01) +
-  geom_hline(yintercept = 0, alpha = 0.5) +
-  geom_vline(xintercept = -2, color = gray, linetype = "dashed") +
+ggplot(data = cqr_results, aes(x = Quantile, y = Estimate)) +
+  geom_line(color = dark_teal, linewidth = 1) +
+  geom_ribbon(aes(x = Quantile, ymin = Lower, ymax = Upper), 
+              alpha = 0.45, fill = dark_teal) +
+  geom_hline(yintercept = 0, color = "red", linetype = "dotted") +
   theme(panel.background = element_rect(fill = 'white', colour = 'white'),
         panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        legend.position = "bottom",
-        text = element_text(size = 10))  +
-  scale_color_manual(breaks = c("OLS", "CQR"),
-                     labels = c("OLS", "CQR"),
-                     values = c(dark_rose, dark_teal)) +
-  scale_fill_manual(breaks = c("OLS", "CQR"),
-                    labels = c("OLS", "CQR"),
-                    values = c(dark_rose, dark_teal))  +
-  scale_x_continuous(limits = c(-9, 100),
-                     breaks = c(-6, 1, seq(10, 90, 10), 99),
-                     labels = c("OLS", "q1", "q10", "q20", "q30", "q40", "q50", 
-                                "q60", "q70", "q80", "q90", "q99")) +
-  labs(x = "",
+        panel.grid.minor = element_blank()) +
+  labs(x = xaxis,
        y = yaxis,
-       color = "Model", group = "Model", fill = "Model") +
-  theme(legend.position = "bottom",
-        legend.box.spacing = unit(0, "pt"),
-        legend.margin = margin(-10,0,0,0),
-        text = element_text(size = 15))
+       title = "Association of educational attainment with systolic blood pressure") +
+  scale_x_continuous(breaks = c(1, seq(10, 90, 10), 99),
+                     labels = c("q1", "q10", "q20", "q30", "q40", "q50", 
+                                "q60", "q70", "q80", "q90", "q99"))
 
 
 #UQR figure#####################################################################
-ols_uqr <- rbind(ols_results, uqr_results)
+ggplot(data = uqr_results, aes(x = Quantile, y = Estimate)) +
+  geom_line(color = tangerine, linewidth = 1) +
+  geom_ribbon(aes(x = Quantile, ymin = Lower, ymax = Upper), 
+              alpha = 0.45, fill = tangerine) +
+  geom_hline(yintercept = 0, color = "red", linetype = "dotted") +
+  theme(panel.background = element_rect(fill = 'white', colour = 'white'),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  labs(x = xaxis,
+       y = yaxis,
+       title = "Association of educational attainment with systolic blood pressure") +
+  scale_x_continuous(breaks = c(1, seq(10, 90, 10), 99),
+                     labels = c("q1", "q10", "q20", "q30", "q40", "q50", 
+                                "q60", "q70", "q80", "q90", "q99"))
 
-#Figure
-ggplot(data = ols_uqr %>% filter(regtype != "OLS"),
+
+#All results figure#############################################################
+all_results$regtype <- factor(all_results$regtype, 
+                              levels = c("OLS", "CQR", "UQR"))
+
+ggplot(data = all_results %>% filter(regtype != "OLS"),
        aes(x = Quantile, y = Estimate, group = regtype,
            color = regtype, fill = regtype)) +
   geom_line(alpha = 50, linewidth = 0.75) +
   geom_ribbon(aes(ymin = Lower, ymax = Upper), alpha = 0.27, color = NA) +
-  geom_point(data = ols_uqr %>% filter(regtype == "OLS")) +
-  geom_errorbar(data = ols_uqr %>% filter(regtype == "OLS"),
+  geom_point(data = all_results %>% filter(regtype == "OLS")) +
+  geom_errorbar(data = all_results %>% filter(regtype == "OLS"),
                 aes(ymin = Lower, ymax = Upper), width = 0.01) +
   geom_hline(yintercept = 0, alpha = 0.5) +
   geom_vline(xintercept = -2, color = gray, linetype = "dashed") +
@@ -813,23 +809,21 @@ ggplot(data = ols_uqr %>% filter(regtype != "OLS"),
         panel.grid.minor = element_blank(),
         legend.position = "bottom",
         text = element_text(size = 10))  +
-  scale_color_manual(breaks = c("OLS", "UQR"),
-                     labels = c("OLS", "UQR"),
-                     values = c(dark_rose, tangerine)) +
-  scale_fill_manual(breaks = c("OLS", "UQR"),
-                    labels = c("OLS", "UQR"),
-                    values = c(dark_rose, tangerine))  +
-  scale_x_continuous(limits = c(-9, 100),
-                     breaks = c(-6, 1, seq(10, 90, 10), 99),
-                     labels = c("OLS", "q1", "q10", "q20", "q30", "q40", "q50", 
-                                "q60", "q70", "q80", "q90", "q99")) +
+  scale_color_manual(breaks = c("OLS", "CQR", "UQR"),
+                     labels = c("OLS", "CQR", "UQR"),
+                     values = c(dark_rose, dark_teal, tangerine)) +
+  scale_fill_manual(breaks = c("OLS", "CQR", "UQR"),
+                    labels = c("OLS", "CQR", "UQR"),
+                    values = c(dark_rose, dark_teal, tangerine))  +
+  scale_x_continuous(limits = c(-10, 99),
+                     breaks = c(-6, 1, 10, 20, 30, 40, 50,
+                                60, 70, 80, 90, 99),
+                     labels = c("OLS", "q1", "q10", "q20", "q30", "q40",
+                                "q50", "q60", "q70", "q80", "q90", "q99")) +
   labs(x = "",
        y = yaxis,
-       color = "Model", group = "Model", fill = "Model") +
-  theme(legend.position = "bottom",
-        legend.box.spacing = unit(0, "pt"),
-        legend.margin = margin(-10,0,0,0),
-        text = element_text(size = 15))
+       color = "Model", group = "Model", fill = "Model")
+
 
 #UQR counterfactual plot########################################################
 #Counterfactual function (creates dataset for plotting)
