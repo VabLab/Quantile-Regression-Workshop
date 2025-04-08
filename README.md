@@ -29,7 +29,8 @@ Department of Family and Community Medicine, University of California, San Franc
 Amanda Irish amanda.irish@ucsf.edu  
 Department of Family and Community Medicine, University of California, San Francisco
 
-Anusha Vable anusha.vable@ucsf.edu  
+Sachi Taniguchi sachi.taniguchi@ucsf.edu
+VabLab Research Community Operations Manager
 Department of Family and Community Medicine, University of California, San Francisco
 
 
