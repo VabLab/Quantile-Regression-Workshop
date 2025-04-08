@@ -123,8 +123,8 @@ Empirical epidemiology has, to date, largely focused on modeling how interventio
 # <font size = "3" color = "FF9300">Location and Scale Shifts</font>
 ```{r message = F, warning = F}
 
-#install.packages("patchwork")
-library(patchwork) #Printing ggplots together
+#install.packages("gridExtra")
+library(gridExtra) #Printing ggplots together
 
 set.seed(2468) #Remove seed to create different distribution plots
 
@@ -183,8 +183,8 @@ loc_scale_shift <- ggplot(aes(Outcome, color = Group, linetype = Group),
         legend.position = "bottom")
 
 #Final plot
-(location_shift | scale_shift) /
-  (loc_scale_shift + plot_spacer())
+grid.arrange(location_shift, scale_shift, loc_scale_shift, 
+             ncol = 2, nrow = 2)
 
 ```
 
@@ -354,7 +354,7 @@ conditional_den <- ggplot(data_8, aes(x = sbp)) +
   scale_x_continuous(breaks = seq(60, 240, by = 20))
 
 
-unconditional_den / conditional_den
+grid.arrange(unconditional_den, conditional_den, nrow = 2)
 
 ```
 
@@ -810,7 +810,7 @@ ggplot(data = cqr_results, aes(x = Quantile, y = Estimate)) +
 
 This figure is just a slightly fancier version of the plot that is produced through the in-built plot functionality in the "quantreg" package. We think it looks nicer and could be a good way of displaying CQR results. Notice that educational attainment appears to have a stronger protective association with SBP at higher quantiles of SBP relative to lower quantiles. This suggests that as we go from one level of schooling to another higher level, the SBP distribution is becoming narrower and that the narrowness is due to the higher risk, right tail of the SBP distribution being pulled closer to the center. Notice also how the confidence intervals around the point estimates at higher quantiles are very large: this is an illustration of the idea we saw earlier about how CQR estimates are usually less precise at the tails because data at the tails are usually sparse.
 
-We can also add our OLS estimate to the CQR plot so viewers can easily compare estimates at the mean to estimates at each quantile of the unconditional distribution.
+We can also add our OLS estimate to the CQR plot so viewers can easily compare estimates at the mean to estimates at each quantile of the conditional distribution.
 
 ```{r}
 
@@ -1162,7 +1162,7 @@ rif_comb <- ggplot(aes(x = RIF_Values, fill = factor(Quantile)),
         text = element_text(size = 15))
 
 
-(rif25 | rif50 | rif75) / (rif_comb)
+grid.arrange(rif25, rif50, rif75, rif_comb, ncol = 3)
 
 ```
 
