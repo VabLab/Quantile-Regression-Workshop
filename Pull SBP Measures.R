@@ -7,11 +7,11 @@ rand <- readRDS("randhrs1992_2022v1.rds") #HRS RAND dataset (R format)
 #rand <- read_dta("randhrs1992_2022v1.dta") #HRS RAND dataset (STATA format)
 
 #------------------------------------------------------------------------------
-# SBP (opnly pulls 2006 to 2018 measures; code could be updated to include 2020 and 2022 measures)
+# SBP (only pulls 2006 to 2018 measures; code could be updated to include 2020 and 2022 measures)
 #------------------------------------------------------------------------------
 sbp <- rand %>%
   dplyr::select(hhid, pn, r8bpsys, r9bpsys, r10bpsys, r11bpsys, r12bpsys,
-                r13bpsys, r14bpsys)
+                r13bpsys, r14bpsys) #Pull additional waves here to add 2020 and 2022 outcome measures
 sbp$hhidpn <- paste0(sbp$hhid, sbp$pn)
 sbp <- sbp %>%
   dplyr::select(hhid, pn, hhidpn, r8bpsys, r9bpsys, r10bpsys, r11bpsys,
