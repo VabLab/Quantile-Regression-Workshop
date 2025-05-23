@@ -1,17 +1,24 @@
 library(tidyverse)
 library(labelled)
+library(haven)
 
 #------------------------------------------------------------------------------
 # Load data
 #------------------------------------------------------------------------------
-trk <- read_rds("trk2018tr_r.rds") #HRS Tracker file
+#trk <- readRDS("trk2018tr_r.rds") #HRS Tracker file (original file)
+
+trk <- readRDS("trk2022tr_r.rds") #R format
+#trk <- read_dta("TRK2022TR_R.rds") #STATA format
 trk_sub <- trk %>%
   dplyr::select(hhid, pn, firstiw, birthyr, gender, hispanic, race, schlyrs,
                 usborn)
 trk_sub$hhidpn <- paste0(trk_sub$hhid, trk_sub$pn)
 
 
-rand <- read_rds("randhrs1992_2018v1.rds") #HRS RAND file
+#rand <- readRDS("randhrs1992_2018v1.rds") #HRS RAND dataset (old 2018 dataset - original)
+
+rand <- readRDS("randhrs1992_2022v1.rds") #HRS RAND dataset (R format)
+#rand <- read_dta("randhrs1992_2022v1.dta") #HRS RAND dataset (STATA format)
 rand_sub <- rand %>%
   dplyr::select(hhid, pn, rabplace, rameduc, rafeduc)
 rand_sub$hhidpn <- paste0(rand_sub$hhid, rand_sub$pn)

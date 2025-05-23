@@ -1,9 +1,13 @@
 library(tidyverse)
+library(haven)
 
-rand <- readRDS("randhrs1992_2018v1.rds") #HRS RAND dataset
+#rand <- readRDS("randhrs1992_2018v1.rds") #HRS RAND dataset (old 2018 dataset - original)
+
+rand <- readRDS("randhrs1992_2022v1.rds") #HRS RAND dataset (R format)
+#rand <- read_dta("randhrs1992_2022v1.dta") #HRS RAND dataset (STATA format)
 
 #------------------------------------------------------------------------------
-# SBP
+# SBP (opnly pulls 2006 to 2018 measures; code could be updated to include 2020 and 2022 measures)
 #------------------------------------------------------------------------------
 sbp <- rand %>%
   dplyr::select(hhid, pn, r8bpsys, r9bpsys, r10bpsys, r11bpsys, r12bpsys,
