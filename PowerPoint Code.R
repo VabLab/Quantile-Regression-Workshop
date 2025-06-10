@@ -579,7 +579,13 @@ summary(uqr_25)$coefficients["schlyrs_c",]
 # ols <- lm(sbp ~ schlyrs_c + age + age2 + gender + race + southern + mom_ed +
 #             dad_ed + year, data = data)
 
-#Robust t-test
+#Two ways to estimate sandwich standard errors - both from the sandwich package
+
+#Sandwich estimator 
+ols_sandwich <- coeftest(ols, vcov = sandwich(ols))
+ols_sandwich["schlyrs_c", ]
+
+#Heteroscedasticity-Consistent Covariance Matrix Estimation (vcovHC)
 ols_robust <- coeftest(ols, vcov = vcovHC(ols, type = 'HC0'))
 ols_robust["schlyrs_c", ]
 
@@ -591,15 +597,17 @@ summary(ols)$coefficients["schlyrs_c", ]
 # ols <- lm(sbp ~ schlyrs_c + age + age2 + gender + race + southern + mom_ed +
 #             dad_ed + year, data = data)
 
+set.seed(987)
 ols_boot <- lm.boot(ols, R = 500)
 ols_boot_sum <- summary(ols_boot)
 
 ols_schlyrs_est <- as.numeric(ols_boot_sum$orig.lm$coefficients["schlyrs_c"])
 ols_schlyrs_sd <- as.numeric(ols_boot_sum$stdev.params["schlyrs_c"])
 
+#Bootstrap estimate and standard error
 cbind(ols_schlyrs_est, ols_schlyrs_sd)
 
-#Compare to robust standard errors
+#Compare to robust standard errors (same as sandwich)
 ols_robust["schlyrs_c", ]
 
 #Compare to unadjusted standard errors
@@ -627,6 +635,7 @@ uqr_25_boot_sum <- summary(uqr_25_boot)
 uqr_25_schlyrs_est <- as.numeric(uqr_25_boot_sum$orig.lm$coefficients["schlyrs_c"])
 uqr_25_schlyrs_sd <- as.numeric(uqr_25_boot_sum$stdev.params["schlyrs_c"])
 
+#Bootstrap standard error
 cbind(uqr_25_schlyrs_est, uqr_25_schlyrs_sd)
 
 #Compare to unadjusted standard errors
