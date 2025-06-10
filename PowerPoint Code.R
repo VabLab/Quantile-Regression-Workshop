@@ -874,7 +874,7 @@ counter_data <- function(results, data){
 }
 
 #Create counterfactual data
-uqr_counter <- counter_data(all_results, data)
+uqr_counter <- counter_data(uqr_results, data)
 summary(uqr_counter)
 
 
