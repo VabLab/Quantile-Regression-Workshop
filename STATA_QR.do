@@ -24,7 +24,7 @@
 	
 	** Bootstrap 95% CI's
 	regress sbp c.schlyrs c.age c.age2 i.gender i.race c.mom_ed c.dad_ed ///
-	i.southern i.year, vce(boostrap, reps(500))
+	i.southern i.year, vce(bootstrap, reps(500))
 	
 	** Extracting results
 	matrix param = r(table)	
