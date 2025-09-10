@@ -25,15 +25,15 @@ Note that no datasets will be made available on this repository due to data usag
 
 # Contact Information
 
-Jilly Hebert jilly.hebert@ucsf.edu  
-Department of Family and Community Medicine, University of California, San Francisco
+Jilly Hebert hebertj@wustl.edu
+School of Public Health, Washington University in St. Louis
 
-Amanda Irish amanda.irish@ucsf.edu  
-Department of Family and Community Medicine, University of California, San Francisco
+Amanda Irish airish@wustl.edu
+School of Public Health, Washington University in St. Louis
 
-Sachi Taniguchi sachi.taniguchi@ucsf.edu
+Sachi Taniguchi sachiko@wustl.edu
 VabLab Research Community Operations Manager
-Department of Family and Community Medicine, University of California, San Francisco
+School of Public Health, Washington University in St. Louis
 
 
 # References
