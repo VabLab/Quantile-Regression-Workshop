@@ -32,7 +32,7 @@ Amanda Irish airish@wustl.edu
 School of Public Health, Washington University in St. Louis
 
 Sachi Taniguchi sachiko@wustl.edu
-VabLab Research Community Operations Manager
+VabLab Research Community Operations Manager;
 School of Public Health, Washington University in St. Louis
 
 
